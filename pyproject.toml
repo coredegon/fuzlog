@@ -1,0 +1,96 @@
+[project]
+name = "fuzl"
+version = "0.1.0"
+description = "Simple and enjoyable Python library for fuzzy logic."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "coredegon", email = "valikalik15@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.0",
+]
+keywords = [
+    "fuzzy",
+    "fuzzy-logic",
+    "fuzzy-sets",
+    "fuzzy-inference",
+    "membership-functions",
+    "mamdani",
+    "sugeno",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+
+[project.optional-dependencies]
+plot = [
+    "matplotlib>=3.9",
+]
+
+[project.urls]
+Repository = "https://github.com/coredegon/fuzl"
+Documentation = "https://github.com/coredegon/fuzl/tree/main/docs"
+Issues = "https://github.com/coredegon/fuzl/issues"
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "matplotlib>=3.9",
+    "pytest>=9.2.0",
+    "ruff>=0.17.5",
+    "ty>=0.0.104",
+]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",       # pyflakes
+    "I",       # import order
+    "N",       # naming
+    "D",       # docstrings
+    "UP",      # modern syntax
+    "B",       # likely bugs
+    "C4",      # comprehensions
+    "SIM",     # simplifications
+    "PT",      # pytest style
+    "NPY",     # numpy
+    "PERF",    # performance
+    "RUF",     # ruff's own
+]
+ignore = [
+    "D105",  # operators are documented by their class
+    "D107",  # and so is __init__
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]
+"docs/*" = ["D"]
+
+# ty needs no table: it checks against the oldest Python in `requires-python`
+# and fails on warnings by default.
+
+[tool.pytest]
+minversion = "9.0"
+strict = true
+testpaths = ["tests"]
+filterwarnings = ["error::RuntimeWarning"]  # a leaked overflow or 0/0 is a bug
