@@ -45,19 +45,17 @@ Coming from MATLAB, mind the order of the parameters: `gaussmf(x, [sigma c])` is
 Other shapes are built from these. The half-Gaussian shoulders of IEEE 1855 are a
 Gaussian joined to a step:
 
-```pycon
->>> import numpy as np
->>> import fuzlog as fz
+```python
+import numpy as np
+import fuzlog as fz
 
->>> shoulder = fz.gauss(5, 1) | fz.rising(5, 5)
->>> shoulder([4.0, 5.0, 9.0]).round(3).tolist()
-[0.607, 1.0, 1.0]
+shoulder = fz.gauss(5, 1) | fz.rising(5, 5)
+print(shoulder([4.0, 5.0, 9.0]).round(3).tolist())  # [0.607, 1.0, 1.0]
 ```
 
 and any function of an array is a set:
 
-```pycon
->>> cosine = fz.MF(lambda x: np.cos(np.clip(x - 5, -2, 2) * np.pi / 4) ** 2, "cosine")
->>> cosine([3.0, 4.0, 5.0]).round(3).tolist()
-[0.0, 0.5, 1.0]
+```python
+cosine = fz.MF(lambda x: np.cos(np.clip(x - 5, -2, 2) * np.pi / 4) ** 2, "cosine")
+print(cosine([3.0, 4.0, 5.0]).round(3).tolist())  # [0.0, 0.5, 1.0]
 ```

@@ -12,26 +12,24 @@ pip install "fuzlog[plot]"    # adds matplotlib for the plots
 
 How much to tip, given the service and the food:
 
-```pycon
->>> import fuzlog as fz
+```python
+import fuzlog as fz
 
->>> service = fz.partition("service", (0, 10), ["poor", "good", "excellent"])
->>> food = fz.Variable("food", (0, 10), rancid=fz.z_shape(1, 4), tasty=fz.s_shape(6, 9))
->>> tip = fz.partition("tip", (0, 30), cheap=5, average=15, generous=25)
+service = fz.partition("service", (0, 10), ["poor", "good", "excellent"])
+food = fz.Variable("food", (0, 10), rancid=fz.z_shape(1, 4), tasty=fz.s_shape(6, 9))
+tip = fz.partition("tip", (0, 30), cheap=5, average=15, generous=25)
 
->>> tipper = fz.Mamdani(
-...     service.poor | food.rancid >> tip.cheap,
-...     service.good >> tip.average,
-...     service.excellent | food.tasty >> tip.generous,
-... )
->>> round(tipper(service=3, food=8), 2)
-17.03
->>> tipper(service=[1, 5, 9], food=[2, 5, 8]).round(2).tolist()
-[8.2, 15.0, 21.8]
->>> print(*tipper.rules, sep="\n")
-if service is poor or food is rancid then tip is cheap
-if service is good then tip is average
-if service is excellent or food is tasty then tip is generous
+tipper = fz.Mamdani(
+    service.poor | food.rancid >> tip.cheap,
+    service.good >> tip.average,
+    service.excellent | food.tasty >> tip.generous,
+)
+print(round(tipper(service=3, food=8), 2))  # 17.03
+print(tipper(service=[1, 5, 9], food=[2, 5, 8]).round(2).tolist())  # [8.2, 15.0, 21.8]
+print(*tipper.rules, sep="\n")
+# if service is poor or food is rancid then tip is cheap
+# if service is good then tip is average
+# if service is excellent or food is tasty then tip is generous
 ```
 
 `tipper.plot(service=3, food=8)` and `tipper.surface("service", "food")` draw:
