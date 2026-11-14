@@ -26,15 +26,15 @@ Shapes with a centre take it first, then what sets their width.
 
 | fuzlog | Definition | MATLAB | IEEE 1855 |
 |---|---|---|---|
-| `gauss(c, sigma)` | `exp(-(x - c)ВІ / (2 sigmaВІ))` | `gaussmf` | GaussianShape |
+| `gauss(c, sigma)` | `exp(-(x - c)² / (2 sigma²))` | `gaussmf` | GaussianShape |
 | `gauss2(c1, sigma1, c2, sigma2)` | `gauss(c1, sigma1)` left of `c1`, 1 between, `gauss(c2, sigma2)` right of `c2` | `gauss2mf` | |
 | `bell(c, width, slope)` | `1 / (1 + \|(x - c) / width\|^(2 slope))` | `gbellmf` | |
 | `sigmoid(c, slope)` | `1 / (1 + exp(-slope (x - c)))` | `sigmf` | |
 | `dsigmoid(c1, slope1, c2, slope2)` | `\|sigmoid(c1, slope1) - sigmoid(c2, slope2)\|` | `dsigmf` | |
-| `psigmoid(c1, slope1, c2, slope2)` | `sigmoid(c1, slope1) В· sigmoid(c2, slope2)` | `psigmf` | |
-| `s_shape(a, b)` | spline from 0 at `a` to 1 at `b`: `2tВІ` up to the middle, `1 - 2(1 - t)ВІ` after it, with `t = (x - a) / (b - a)` | `smf` | SShape |
+| `psigmoid(c1, slope1, c2, slope2)` | `sigmoid(c1, slope1) · sigmoid(c2, slope2)` | `psigmf` | |
+| `s_shape(a, b)` | spline from 0 at `a` to 1 at `b`: `2t²` up to the middle, `1 - 2(1 - t)²` after it, with `t = (x - a) / (b - a)` | `smf` | SShape |
 | `z_shape(a, b)` | `1 - s_shape(a, b)` | `zmf` | ZShape |
-| `pi_shape(a, b, c, d)` | `s_shape(a, b) В· z_shape(c, d)` | `pimf` | PIShape |
+| `pi_shape(a, b, c, d)` | `s_shape(a, b) · z_shape(c, d)` | `pimf` | PIShape |
 
 Coming from MATLAB, mind the order of the parameters: `gaussmf(x, [sigma c])` is
 `gauss(c, sigma)`, `sigmf(x, [a c])` is `sigmoid(c, a)`, `gbellmf(x, [a b c])` is

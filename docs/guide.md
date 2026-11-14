@@ -275,5 +275,5 @@ the peaks.
 
 Measured on a laptop (Ryzen 5 5500U, one thread, NumPy 2.5): a trapezoid takes
 about 6 ns per value on a million values; the three-rule Mamdani system of the
-[README](../README.md) takes about 0.15 ms for one sample and 1 Вµs per sample on
-arrays; a Sugeno system of the same size takes 0.1 Вµs per sample on arrays.
+[README](../README.md) takes about 0.15 ms for one sample and 1 µs per sample on
+arrays; a Sugeno system of the same size takes 0.1 µs per sample on arrays.
