@@ -8,7 +8,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-import fuzl as fz
+import fuzlog as fz
 
 IMAGES = Path(__file__).parent / "img"
 SHAPES = [

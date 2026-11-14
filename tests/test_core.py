@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-import fuzl as fz
+import fuzlog as fz
 
 # Every shape with values that follow from its definition: (set, x, degrees).
 SHAPES = [

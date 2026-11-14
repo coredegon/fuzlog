@@ -1,8 +1,8 @@
 # Reference
 
-Everything is reached from the package: `import fuzl as fz`. The code lives in
-three modules: `fuzl.types` (the data model), `fuzl.core` (everything that
-computes) and `fuzl.plotting` (matplotlib views, imported on first use).
+Everything is reached from the package: `import fuzlog as fz`. The code lives in
+three modules: `fuzlog.types` (the data model), `fuzlog.core` (everything that
+computes) and `fuzlog.plotting` (matplotlib views, imported on first use).
 
 ## Sets
 
@@ -89,7 +89,7 @@ A norm is a function of two broadcastable arrays of degrees.
 |---|---|---|
 | Zadeh | `np.minimum` | `np.maximum` |
 | probabilistic | `np.multiply` | `probor`: `a + b - ab` |
-| Łukasiewicz | `bounded_diff`: `max(a + b - 1, 0)` | `bounded_sum`: `min(a + b, 1)` |
+| ЕЃukasiewicz | `bounded_diff`: `max(a + b - 1, 0)` | `bounded_sum`: `min(a + b, 1)` |
 
 ### Defuzzifiers
 
@@ -99,7 +99,7 @@ per set: NaN for an empty one. [Meanings](guide.md#defuzzification).
 
 ## Plotting
 
-`fuzl.plotting` holds what the `plot` and `surface` methods call:
+`fuzlog.plotting` holds what the `plot` and `surface` methods call:
 `plot_variable(variable, ax=None)`, `plot_inference(system, ax=None, **inputs)` and
 `plot_surface(system, x, y, ax=None, *, points=64, **fixed)`. Each returns the Axes.
 

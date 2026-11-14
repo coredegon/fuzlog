@@ -12,14 +12,14 @@ import math
 try:
     import matplotlib.pyplot as plt
 except ModuleNotFoundError as error:  # pragma: no cover
-    hint = 'plotting needs matplotlib: pip install "fuzl[plot]"'
+    hint = 'plotting needs matplotlib: pip install "fuzlog[plot]"'
     raise ModuleNotFoundError(hint) from error
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.colors import LinearSegmentedColormap, to_rgba
 
-from fuzl.core import Mamdani, Sugeno
-from fuzl.types import Variable
+from fuzlog.core import Mamdani, Sugeno
+from fuzlog.types import Variable
 
 # Eight hues that stay apart under colour blindness when neighbours take
 # neighbouring slots: one row for light surfaces, one for dark. Terms take them in
@@ -101,7 +101,7 @@ def plot_surface(
         _, ax = plt.subplots(figsize=(5, 4), layout="constrained")
     xs, ys = (np.linspace(*system.inputs[name].universe, points) for name in (x, y))
     z = system(**{x: xs[None, :], y: ys[:, None]}, **fixed)
-    colors = LinearSegmentedColormap.from_list("fuzl", _RAMPS[_dark(ax)])
+    colors = LinearSegmentedColormap.from_list("fuzlog", _RAMPS[_dark(ax)])
     mesh = ax.pcolormesh(xs, ys, z, cmap=colors, shading="gouraud", rasterized=True)
     ink = plt.rcParams["text.color"]
     levels = ax.contour(xs, ys, z, levels=6, colors=ink, linewidths=0.5)

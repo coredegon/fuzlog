@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, overload
 import numpy as np
 from numpy.typing import ArrayLike
 
-from fuzl.types import (
+from fuzlog.types import (
     MF,
     Array,
     Defuzzifier,
@@ -619,7 +619,7 @@ class Mamdani:
 
     def plot(self, ax: Axes | None = None, /, **inputs: float) -> Axes:
         """Draw the output set inferred for scalar inputs and its crisp value."""
-        from fuzl.plotting import plot_inference
+        from fuzlog.plotting import plot_inference
 
         return plot_inference(self, ax, **inputs)
 
@@ -634,7 +634,7 @@ class Mamdani:
         **fixed: float,
     ) -> Axes:
         """Draw the output over the inputs ``x`` and ``y``; the others are ``fixed``."""
-        from fuzl.plotting import plot_surface
+        from fuzlog.plotting import plot_surface
 
         return plot_surface(self, x, y, ax, points=points, **fixed)
 
@@ -716,7 +716,7 @@ class Sugeno:
         **fixed: float,
     ) -> Axes:
         """Draw the output over the inputs ``x`` and ``y``; the others are ``fixed``."""
-        from fuzl.plotting import plot_surface
+        from fuzlog.plotting import plot_surface
 
         return plot_surface(self, x, y, ax, points=points, **fixed)
 

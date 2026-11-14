@@ -1,11 +1,11 @@
-# fuzl
+# fuzlog
 
 Fuzzy logic for Python: membership functions, linguistic variables, Mamdani and
 Sugeno inference. Three small modules on top of NumPy, fully typed, Python 3.12+.
 
 ```sh
-pip install fuzl            # NumPy is the only dependency
-pip install "fuzl[plot]"    # adds matplotlib for the plots
+pip install fuzlog            # NumPy is the only dependency
+pip install "fuzlog[plot]"    # adds matplotlib for the plots
 ```
 
 ## Example
@@ -13,7 +13,7 @@ pip install "fuzl[plot]"    # adds matplotlib for the plots
 How much to tip, given the service and the food:
 
 ```pycon
->>> import fuzl as fz
+>>> import fuzlog as fz
 
 >>> service = fz.partition("service", (0, 10), ["poor", "good", "excellent"])
 >>> food = fz.Variable("food", (0, 10), rancid=fz.z_shape(1, 4), tasty=fz.s_shape(6, 9))
@@ -36,7 +36,7 @@ if service is excellent or food is tasty then tip is generous
 
 `tipper.plot(service=3, food=8)` and `tipper.surface("service", "food")` draw:
 
-![The output set inferred for service 3 and food 8, and the tip over both inputs](https://raw.githubusercontent.com/coredegon/fuzl/main/docs/img/tipper.png)
+![The output set inferred for service 3 and food 8, and the tip over both inputs](https://raw.githubusercontent.com/coredegon/fuzlog/main/docs/img/tipper.png)
 
 ## What is inside
 
@@ -58,9 +58,9 @@ if service is excellent or food is tasty then tip is generous
 
 ## Documentation
 
-- [Guide](https://github.com/coredegon/fuzl/blob/main/docs/guide.md): the library from sets to inference
-- [Membership functions](https://github.com/coredegon/fuzl/blob/main/docs/shapes.md): every shape, its definition and its name elsewhere
-- [Reference](https://github.com/coredegon/fuzl/blob/main/docs/reference.md): every public name on one page
+- [Guide](https://github.com/coredegon/fuzlog/blob/main/docs/guide.md): the library from sets to inference
+- [Membership functions](https://github.com/coredegon/fuzlog/blob/main/docs/shapes.md): every shape, its definition and its name elsewhere
+- [Reference](https://github.com/coredegon/fuzlog/blob/main/docs/reference.md): every public name on one page
 
 ## Development
 

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-import fuzl as fz
+import fuzlog as fz
 
 TEMP = fz.Variable("temp", (0, 40), cold=fz.falling(10, 20), hot=fz.rising(20, 30))
 HUMID = fz.Variable(

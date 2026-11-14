@@ -2,7 +2,7 @@
 
 ```pycon
 >>> import numpy as np
->>> import fuzl as fz
+>>> import fuzlog as fz
 ```
 
 ## Sets
@@ -125,7 +125,7 @@ temp is hot and humid is wet
 ```
 
 `>>` turns a proposition into a rule. Python binds `>>` tighter than `&` and `|`,
-and fuzl accounts for it, so the condition needs no brackets. `Rule` adds a weight
+and fuzlog accounts for it, so the condition needs no brackets. `Rule` adds a weight
 that scales how strongly the rule fires.
 
 ```pycon
@@ -169,7 +169,7 @@ nan
 ```
 
 Each step can be replaced. A norm is any function of two arrays of degrees; NumPy's
-`minimum`, `multiply` and `maximum` are norms already, and fuzl adds `probor`,
+`minimum`, `multiply` and `maximum` are norms already, and fuzlog adds `probor`,
 `bounded_sum` and `bounded_diff`.
 
 | Argument | Default | Meaning |
@@ -244,7 +244,7 @@ firing strengths.
 
 ## Plots
 
-Plots need matplotlib: `pip install "fuzl[plot]"`. Each call draws on the Axes it is
+Plots need matplotlib: `pip install "fuzlog[plot]"`. Each call draws on the Axes it is
 given, or on a new figure, and returns the Axes, so it works the same in a script
 and in a notebook.
 
@@ -275,5 +275,5 @@ the peaks.
 
 Measured on a laptop (Ryzen 5 5500U, one thread, NumPy 2.5): a trapezoid takes
 about 6 ns per value on a million values; the three-rule Mamdani system of the
-[README](../README.md) takes about 0.15 ms for one sample and 1 µs per sample on
-arrays; a Sugeno system of the same size takes 0.1 µs per sample on arrays.
+[README](../README.md) takes about 0.15 ms for one sample and 1 Вµs per sample on
+arrays; a Sugeno system of the same size takes 0.1 Вµs per sample on arrays.

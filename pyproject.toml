@@ -1,5 +1,5 @@
 [project]
-name = "fuzl"
+name = "fuzlog"
 version = "0.1.0"
 description = "Simple and enjoyable Python library for fuzzy logic."
 readme = "README.md"
@@ -42,9 +42,9 @@ plot = [
 ]
 
 [project.urls]
-Repository = "https://github.com/coredegon/fuzl"
-Documentation = "https://github.com/coredegon/fuzl/tree/main/docs"
-Issues = "https://github.com/coredegon/fuzl/issues"
+Repository = "https://github.com/coredegon/fuzlog"
+Documentation = "https://github.com/coredegon/fuzlog/tree/main/docs"
+Issues = "https://github.com/coredegon/fuzlog/issues"
 
 [build-system]
 requires = ["uv_build>=0.13.7,<0.14.0"]

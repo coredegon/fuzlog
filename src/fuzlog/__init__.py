@@ -1,6 +1,6 @@
 """Fuzzy logic for Python: small, fast, typed.
 
-``import fuzl as fz`` gives the whole library:
+``import fuzlog as fz`` gives the whole library:
 
 - sets: ``triangle``, ``trapezoid``, ``gauss`` and 13 more shapes, combined with
   ``& | ~ **``;
@@ -10,7 +10,7 @@
 - plots: ``variable.plot()``, ``system.plot(...)``, ``system.surface(...)``.
 """
 
-from fuzl.core import (
+from fuzlog.core import (
     Mamdani,
     Sugeno,
     bell,
@@ -42,7 +42,7 @@ from fuzl.core import (
     very,
     z_shape,
 )
-from fuzl.types import MF, Array, Defuzzifier, Kernel, Norm, Prop, Rule, Variable
+from fuzlog.types import MF, Array, Defuzzifier, Kernel, Norm, Prop, Rule, Variable
 
 __all__ = [
     "MF",

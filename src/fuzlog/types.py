@@ -1,6 +1,6 @@
 """The data model: fuzzy sets, linguistic variables, propositions and rules.
 
-Everything that computes with them lives in :mod:`fuzl.core`.
+Everything that computes with them lives in :mod:`fuzlog.core`.
 """
 
 from __future__ import annotations
@@ -180,7 +180,7 @@ class Variable:
 
     def plot(self, ax: Axes | None = None) -> Axes:
         """Draw the membership function of every term (needs matplotlib)."""
-        from fuzl.plotting import plot_variable
+        from fuzlog.plotting import plot_variable
 
         return plot_variable(self, ax)
 

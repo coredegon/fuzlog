@@ -1,4 +1,4 @@
-# fuzl documentation
+# fuzlog documentation
 
 - [Guide](guide.md): the library from sets to inference, in the order you would use it.
 - [Membership functions](shapes.md): every shape, its definition and its name elsewhere.
