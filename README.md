@@ -52,7 +52,8 @@ print(*tipper.rules, sep="\n")
 - **Arrays.** A scalar gives a float, arrays give arrays, and inputs broadcast
   against each other.
 - **Tables.** `compile` turns a system into a lookup table, also over transformed
-  inputs; `table.save(path)` and `load(path)` keep it on disk.
+  inputs, and a list of variables into a table of names such as `hot_wet`;
+  `table.save(path)` and `load(path)` keep it on disk.
 - **Plots.** `variable.plot()`, `system.plot(...)`, `system.surface(x, y)`.
 
 ## Documentation

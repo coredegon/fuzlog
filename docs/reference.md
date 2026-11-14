@@ -100,26 +100,29 @@ per set: NaN for an empty one. [Meanings](guide.md#defuzzification).
 
 ## Tables
 
-**`compile(system, axes=None, *, transform=None, points=101, method="linear",
-dtype=np.float64)`** evaluates `system` on a grid and returns a
+**`compile(system, axes=None, *, transform=None, points=101, method=None,
+dtype=None)`** evaluates `system` on a grid and returns a
 `Table`. The system is a `Mamdani`, a `Sugeno`, a proposition or any function of
-keyword arrays.
+keyword arrays. A list of variables gives a table of names: the strongest term of
+every variable, joined by `_`.
 
 | Argument | Meaning |
 |---|---|
 | `axes` | the inputs of the table by name: a number of points over the universe of that variable, `(low, high)` or `(low, high, points)`; by default every input of the system |
 | `transform` | function of the table's inputs, as keyword arrays, that returns the system's inputs by name; needs `axes` |
 | `points` | points of every axis that gives none |
-| `method` | `"linear"` interpolates between nodes, `"nearest"` takes the closest one |
-| `dtype` | type of the stored numbers |
+| `method` | `"linear"`, the default, interpolates between nodes; `"nearest"` takes the closest one, as a table of names always does |
+| `dtype` | type of the stored numbers: by default `np.float64`, and for names the smallest type that counts them |
 
 **`Table`**
 
 | Member | Meaning |
 |---|---|
-| `table(**inputs)` | the looked-up output, with the shapes of `system(**inputs)`; inputs outside an axis take its nearest end, or wrap around if the variable is periodic; NaN gives NaN |
+| `table(**inputs)` | the looked-up output, with the shapes of `system(**inputs)`; inputs outside an axis take its nearest end, or wrap around if the variable is periodic; NaN gives NaN. A table of names gives strings, empty for NaN |
+| `table.codes(**inputs)` | for a table of names, the position of the name in `labels`; -1 where an input is NaN |
 | `table.save(path, *, compress=False)` | writes a NumPy `.npz` archive |
 | `axes`, `values`, `method`, `source` | the axes, the array with one dimension per axis, the method, the text of what was compiled |
+| `labels` | the names of a table of names, else `None` |
 
 **`load(path)`** reads a saved table. The file holds the numbers and the axes, not
 the rules: the system cannot be rebuilt from it.

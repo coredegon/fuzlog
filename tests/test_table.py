@@ -182,3 +182,80 @@ def test_table_describes_itself():
         "Table(temp[11] x humid[11], linear, from Mamdani(3 rules: temp, humid -> fan))"
     )
     assert fz.compile(plane, {"x": (0, 1), "y": (0, 1)}, points=3).source == "plane"
+
+
+def test_variables_compile_into_a_table_of_names():
+    table = fz.compile([TEMP, HUMID])
+    assert table.labels is not None
+    assert len(table.labels) == 9
+    assert table.labels[:4] == ("cold_dry", "cold_comfortable", "cold_wet", "warm_dry")
+    assert table.values.dtype == np.uint8
+    assert table.method == "nearest"
+    assert table(temp=27, humid=40) == "hot_comfortable"
+    assert isinstance(table(temp=27, humid=40), str)
+    names = table(temp=[[5.0], [27.0]], humid=[10.0, 50.0, 90.0])
+    assert names.tolist() == [
+        ["cold_dry", "cold_comfortable", "cold_wet"],
+        ["hot_dry", "hot_comfortable", "hot_wet"],
+    ]
+    assert (
+        repr(table) == "Table(temp[101] x humid[101], 9 names, from names(temp, humid))"
+    )
+
+
+def test_codes_count_into_the_labels():
+    table = fz.compile([TEMP, HUMID])
+    assert table.labels is not None
+    assert table.codes(temp=27, humid=40) == 7
+    assert table.labels[7] == "hot_comfortable"
+    codes = table.codes(temp=[5.0, np.nan], humid=[10.0, 10.0])
+    assert codes.tolist() == [0, -1]
+    assert table(temp=[5.0, np.nan], humid=[10.0, 10.0]).tolist() == ["cold_dry", ""]
+    assert table(temp=np.nan, humid=10) == ""
+    with pytest.raises(TypeError, match="only a table of names"):
+        fz.compile(COOLER, points=3).codes(temp=1, humid=2)
+
+
+def test_names_follow_a_transform_and_a_periodic_variable():
+    def compass(x, y):
+        return {"wind": np.degrees(np.arctan2(x, y))}
+
+    table = fz.compile([WIND], {"x": (-1, 1, 41), "y": (-1, 1, 41)}, transform=compass)
+    assert table(x=0, y=1) == "north"
+    assert table(x=1, y=0.1) == "east"
+    assert table(x=-0.1, y=-1) == "south"
+    assert table(x=-1, y=0) == "west"
+
+
+def test_many_names_take_a_wider_type():
+    wide = fz.partition("wide", (0, 1), [f"t{i}" for i in range(300)])
+    table = fz.compile([wide], points=601)
+    assert table.values.dtype == np.uint16
+    assert table(wide=1.0) == "t299"
+    assert fz.compile([TEMP], points=5, dtype=np.int64).values.dtype == np.int64
+
+
+def test_table_of_names_survives_saving_and_loading(tmp_path):
+    table = fz.compile([TEMP, HUMID], points=21)
+    table.save(tmp_path / "names.npz", compress=True)
+    loaded = fz.load(tmp_path / "names.npz")
+    assert loaded.labels == table.labels
+    assert loaded.values.dtype == np.uint8
+    assert loaded(temp=27, humid=40) == "hot_comfortable"
+    assert repr(loaded) == repr(table)
+
+
+def test_names_are_refused_where_they_make_no_sense():
+    with pytest.raises(ValueError, match="nearest"):
+        fz.compile([TEMP], method="linear")
+    with pytest.raises(TypeError, match="from variables"):
+        fz.compile([TEMP, COOLER])  # ty: ignore[invalid-argument-type]
+    with pytest.raises(TypeError, match="from variables"):
+        fz.compile([])
+    with pytest.raises(ValueError, match="must differ"):
+        fz.compile([TEMP, TEMP])
+    axes = [fz.table.Axis("x", 0.0, 1.0, 3)]
+    with pytest.raises(ValueError, match="whole numbers"):
+        fz.Table(axes, np.zeros(3), "nearest", labels=["a"])
+    with pytest.raises(ValueError, match="do not fit"):
+        fz.Table(axes, np.array([0, 1, 2]), "nearest", labels=["a", "b"])
