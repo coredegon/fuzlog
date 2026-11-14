@@ -42,8 +42,8 @@ Coming from MATLAB, mind the order of the parameters: `gaussmf(x, [sigma c])` is
 
 ## Anything else
 
-A shape that is not listed is one line away. The half-Gaussian shoulders of
-IEEE 1855 are a Gaussian joined to a step:
+Other shapes are built from these. The half-Gaussian shoulders of IEEE 1855 are a
+Gaussian joined to a step:
 
 ```pycon
 >>> import numpy as np

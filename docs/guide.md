@@ -257,7 +257,6 @@ cooler.surface("temp", "humid", ax)  # on an Axes of your own
 
 ![The fan speed inferred for 27 degrees and 40 percent, and over both inputs](img/cooler.png)
 
-Text and axes follow matplotlib's style, including dark ones. Terms take their
-colours from a fixed palette of eight hues that stay apart under colour blindness;
-a variable with more terms is drawn in one hue and told apart by the names above
-the peaks.
+Plots follow the active matplotlib style. Terms are coloured from a palette of
+eight colour-blind-safe hues; a variable with more terms is drawn in one hue, with
+the term names above the peaks.

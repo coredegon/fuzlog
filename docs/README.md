@@ -1,6 +1,6 @@
 # fuzlog documentation
 
-- [Guide](guide.md): the library from sets to inference, in the order you would use it.
+- [Guide](guide.md): the library from sets to inference.
 - [Membership functions](shapes.md): every shape, its definition and its name elsewhere.
 - [Reference](reference.md): every public name on one page.
 

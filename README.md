@@ -1,7 +1,7 @@
 # fuzlog
 
 Fuzzy logic for Python: membership functions, linguistic variables, Mamdani and
-Sugeno inference. Three small modules on top of NumPy, fully typed, Python 3.12+.
+Sugeno inference. Built on NumPy, typed, Python 3.12+.
 
 ```sh
 pip install fuzlog            # NumPy is the only dependency
@@ -53,8 +53,7 @@ if service is excellent or food is tasty then tip is generous
   constant or functional conclusions.
 - **Arrays.** A scalar gives a float, arrays give arrays, and inputs broadcast
   against each other.
-- **Plots.** `variable.plot()`, `system.plot(...)`, `system.surface(x, y)`, in
-  scripts and notebooks alike.
+- **Plots.** `variable.plot()`, `system.plot(...)`, `system.surface(x, y)`.
 
 ## Documentation
 
