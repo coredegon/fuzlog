@@ -261,19 +261,3 @@ Text and axes follow matplotlib's style, including dark ones. Terms take their
 colours from a fixed palette of eight hues that stay apart under colour blindness;
 a variable with more terms is drawn in one hue and told apart by the names above
 the peaks.
-
-## Speed
-
-- Pass arrays instead of looping: one call fuzzifies each term once, however many
-  rules use it.
-- Piecewise-linear sets go through `np.interp` for small inputs and through
-  cache-sized blocks of ramps for large ones.
-- Under the default `aggregation`, rules with the same conclusion are merged before
-  the output set is built.
-- Mamdani inference costs time in proportion to `points`; lower it when the output
-  terms are simple.
-
-Measured on a laptop (Ryzen 5 5500U, one thread, NumPy 2.5): a trapezoid takes
-about 6 ns per value on a million values; the three-rule Mamdani system of the
-[README](../README.md) takes about 0.15 ms for one sample and 1 µs per sample on
-arrays; a Sugeno system of the same size takes 0.1 µs per sample on arrays.
