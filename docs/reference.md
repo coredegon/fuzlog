@@ -89,7 +89,7 @@ A norm is a function of two broadcastable arrays of degrees.
 |---|---|---|
 | Zadeh | `np.minimum` | `np.maximum` |
 | probabilistic | `np.multiply` | `probor`: `a + b - ab` |
-| ЕЃukasiewicz | `bounded_diff`: `max(a + b - 1, 0)` | `bounded_sum`: `min(a + b, 1)` |
+| Łukasiewicz | `bounded_diff`: `max(a + b - 1, 0)` | `bounded_sum`: `min(a + b, 1)` |
 
 ### Defuzzifiers
 
