@@ -7,7 +7,8 @@
 - variables: ``Variable`` and ``partition``;
 - rules: ``temp.hot & humidity.high >> fan.fast``;
 - inference: ``Mamdani`` and ``Sugeno``;
-- plots: ``variable.plot()``, ``system.plot(...)``, ``system.surface(...)``.
+- plots: ``variable.plot()``, ``system.plot(...)``, ``system.surface(...)``;
+- tables: ``compile(system)`` for lookup speed, ``table.save(path)`` and ``load``.
 """
 
 from fuzlog.core import (
@@ -42,6 +43,7 @@ from fuzlog.core import (
     very,
     z_shape,
 )
+from fuzlog.table import Table, compile, load
 from fuzlog.types import MF, Array, Defuzzifier, Kernel, Norm, Prop, Rule, Variable
 
 __all__ = [
@@ -54,17 +56,20 @@ __all__ = [
     "Prop",
     "Rule",
     "Sugeno",
+    "Table",
     "Variable",
     "bell",
     "bisector",
     "bounded_diff",
     "bounded_sum",
     "centroid",
+    "compile",
     "dsigmoid",
     "extremely",
     "falling",
     "gauss",
     "gauss2",
+    "load",
     "lom",
     "mom",
     "partition",
