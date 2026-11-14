@@ -5,8 +5,8 @@
 inputs up, so its speed does not depend on the rules, and it is saved to disk as
 plain numbers: loading one needs neither the rules nor the code that made it.
 
-A list of variables compiles into a table of names: it answers with the strongest
-term of every variable, joined into one string such as ``red_low_medium``.
+A system that answers with strings, such as ``Labels``, compiles into a table of
+labels, which keeps the distinct strings once and a small number per node.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import json
 import math
 import os
 import zipfile
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
 from typing import Any, Literal, NamedTuple
 
@@ -28,7 +28,7 @@ from fuzlog.types import Array, Prop, Variable
 type Span = int | tuple[float, float] | tuple[float, float, int]
 type Method = Literal["linear", "nearest"]
 
-_FORMATS = (1, 2)  # versions of the file layout: 2 adds the names
+_FORMATS = (1, 2)  # versions of the file layout: 2 adds the labels
 _CHUNK = 1 << 14  # grid nodes evaluated in one call of the system
 
 
@@ -79,15 +79,15 @@ class Table:
     ``nearest`` takes the closest node, which is faster and exact when the inputs
     only take the values of the nodes.
 
-    A table of names has ``labels``: its values are whole numbers that count into
-    them, and it answers with the label of the closest node.
+    A table of labels has ``labels``: its values are whole numbers that count
+    into them, and it answers with the label of the closest node.
 
     Tables are made by :func:`compile` and :func:`load`. ``axes`` describe the
     inputs, ``values`` holds the output with one dimension per axis, and ``source``
     names what was compiled.
     """
 
-    __slots__ = ("_holes", "_names", "axes", "labels", "method", "source", "values")
+    __slots__ = ("_holes", "_words", "axes", "labels", "method", "source", "values")
 
     def __init__(
         self,
@@ -109,7 +109,7 @@ class Table:
             whole = np.issubdtype(values.dtype, np.integer)
             if method != "nearest" or not whole or values.min() < 0:
                 raise ValueError(
-                    "a table of names needs whole numbers and the nearest method"
+                    "a table of labels needs whole numbers and the nearest method"
                 )
             if values.max() >= len(self.labels):
                 raise ValueError(
@@ -119,19 +119,19 @@ class Table:
         self.method: Method = method
         self.source = source
         self._holes = bool(np.isnan(values).any())  # nodes where no rule fires
-        # The empty name closes the list: it is what the number -1 counts to.
-        self._names = None if self.labels is None else np.array([*self.labels, ""])
+        # The empty label closes the list: it is what the number -1 counts to.
+        self._words = None if self.labels is None else np.array([*self.labels, ""])
 
     def __call__(self, **inputs: ArrayLike) -> Any:
         """Look the output up for the given inputs.
 
         A table of numbers gives a float for scalars and an array otherwise, NaN
-        where an input is NaN. A table of names gives the labels the same way, with
-        an empty string where an input is NaN.
+        where an input is NaN. A table of labels gives strings the same way,
+        empty where an input is NaN.
         """
-        if self._names is not None:
-            names = self._names[self.codes(**inputs)]
-            return names if isinstance(names, np.ndarray) else str(names)
+        if self._words is not None:
+            words = self._words[self.codes(**inputs)]
+            return words if isinstance(words, np.ndarray) else str(words)
         places, missing, shape = self._locate(inputs)
         nearest = self.method == "nearest"
         out = self._nearest(places) if nearest else self._linear(places)
@@ -147,7 +147,7 @@ class Table:
         an input is NaN.
         """
         if self.labels is None:
-            raise TypeError("only a table of names has codes")
+            raise TypeError("only a table of labels has codes")
         places, missing, shape = self._locate(inputs)
         out = self._nearest(places).astype(np.intp)
         for lost in missing:
@@ -234,7 +234,7 @@ class Table:
     def __repr__(self) -> str:
         axes = " x ".join(f"{axis.name}[{axis.points}]" for axis in self.axes)
         source = f", from {self.source}" if self.source else ""
-        kind = self.method if self.labels is None else f"{len(self.labels)} names"
+        kind = self.method if self.labels is None else f"{len(self.labels)} labels"
         return f"Table({axes}, {kind}{source})"
 
 
@@ -253,38 +253,6 @@ def load(path: str | os.PathLike[str]) -> Table:
         )
     axes = [Axis(*axis) for axis in meta["axes"]]
     return Table(axes, values, meta["method"], meta["source"], meta.get("labels"))
-
-
-class _Namer:
-    """Names inputs by the strongest term of every variable.
-
-    Called like a system, it gives the position of the name in ``labels``, which
-    lists every combination of terms with the last variable changing fastest.
-    """
-
-    def __init__(self, variables: Sequence[Variable]) -> None:
-        strangers = [v for v in variables if not isinstance(v, Variable)]
-        if not variables or strangers:
-            raise TypeError(
-                f"names are compiled from variables, got {strangers or variables}"
-            )
-        self.inputs = {variable.name: variable for variable in variables}
-        if len(self.inputs) < len(variables):
-            raise ValueError(f"variables to name must differ, got {list(variables)}")
-        terms = itertools.product(*(variable.terms for variable in variables))
-        self.labels = tuple("_".join(names) for names in terms)
-
-    def __call__(self, **inputs: ArrayLike) -> NDArray[np.intp]:
-        number = np.zeros(1, dtype=np.intp)
-        for name, variable in self.inputs.items():
-            if name not in inputs:
-                raise TypeError(f"missing input {name!r}")
-            strongest = variable(inputs[name]).argmax(axis=0)
-            number = number * len(variable.terms) + strongest
-        return number
-
-    def __repr__(self) -> str:
-        return f"names({', '.join(self.inputs)})"
 
 
 def _variables(system: object) -> dict[str, Variable]:
@@ -327,7 +295,7 @@ def _axes(
 
 
 def compile(
-    system: Callable[..., Any] | Sequence[Variable],
+    system: Callable[..., Any],
     axes: Mapping[str, Span] | None = None,
     /,
     *,
@@ -338,19 +306,15 @@ def compile(
 ) -> Table:
     """Evaluate a system on a grid of its inputs and keep the results in a table.
 
-    The system is a ``Mamdani``, a ``Sugeno``, a proposition or any function of
-    keyword arrays. Without ``axes`` every input variable is sampled at ``points``
-    values of its universe::
+    The system is anything that is called with keyword arrays: a ``Mamdani``, a
+    ``Sugeno``, a ``Labels``, a proposition or a function of your own. Without
+    ``axes`` every input variable is sampled at ``points`` values of its universe::
 
         table = compile(cooler)
         table(temp=27, humid=40)
 
-    A list of variables is compiled into a table of names. It answers with the
-    strongest term of every variable, joined by ``_``, and keeps one small whole
-    number per node::
-
-        table = compile([hue, sat])
-        table(hue=10, sat=0.9)  # "red_vivid"
+    A system that answers with strings gives a table of labels: it keeps the
+    distinct strings once and a small whole number per node.
 
     ``axes`` name the inputs of the table and give each a number of points, to
     sample the universe of the variable of that name, or a range ``(low, high)``
@@ -368,37 +332,28 @@ def compile(
         table(x=0.3, y=-0.2)
 
     Args:
-        system: What to compile: a system, or the variables to name.
+        system: What to compile.
         axes: The inputs of the table; by default the inputs of the system.
         transform: Maps the inputs of the table to the inputs of the system.
         points: Number of points of every axis that does not give its own.
         method: How the table answers between its nodes: ``linear``, the default,
-            or ``nearest``. A table of names is always ``nearest``.
+            or ``nearest``. A table of labels is always ``nearest``.
         dtype: Type of the stored numbers. By default ``np.float64``, of which
-            ``np.float32`` takes half, and for names the smallest type that counts
-            them all.
+            ``np.float32`` takes half, and for labels the smallest type that
+            counts them all.
     """
     if transform is not None and axes is None:
         raise TypeError("a transform needs axes: the inputs of the table")
-    labels = None
-    if isinstance(system, Sequence):
-        system = _Namer(system)
-        labels = system.labels
-        if method not in (None, "nearest"):
-            raise ValueError(f"a table of names is 'nearest', got {method!r}")
-        method = "nearest"
-        if dtype is None:
-            dtype = np.min_scalar_type(len(labels) - 1)
-    method = method or "linear"
-    dtype = np.float64 if dtype is None else dtype
     table_axes = _axes(axes, _variables(system), points)
     grids = [axis.grid() for axis in table_axes]
     shape = tuple(axis.points for axis in table_axes)
-    values = np.empty(shape, dtype=dtype)
-    cells = values.reshape(-1)
+    size = math.prod(shape)
+    cells: np.ndarray | None = None  # made once the first results tell their kind
+    worded = False
+    known: dict[str, int] = {}  # every label and its number, in order of appearance
 
-    for start in range(0, cells.size, _CHUNK):
-        stop = min(start + _CHUNK, cells.size)
+    for start in range(0, size, _CHUNK):
+        stop = min(start + _CHUNK, size)
         nodes = np.unravel_index(np.arange(start, stop), shape)
         inputs: Mapping[str, ArrayLike] = {
             axis.name: grid[node]
@@ -411,6 +366,29 @@ def compile(
                     f"a transform returns the inputs of the system by name, "
                     f"got {type(inputs).__name__}"
                 )
-        cells[start:stop] = np.broadcast_to(system(**inputs), stop - start)
+        out = np.asarray(system(**inputs))
+        strings = out.dtype.kind in "US"
+        if cells is None:
+            worded = strings
+            if worded and method == "linear":
+                raise ValueError("labels cannot be interpolated: use method='nearest'")
+            kind = np.uint32 if worded else np.float64 if dtype is None else dtype
+            cells = np.empty(size, dtype=kind)
+        elif strings != worded:
+            raise TypeError("a system gives labels or numbers, not both")
+        out = np.broadcast_to(out, stop - start)
+        if worded:
+            found, where = np.unique(out, return_inverse=True)
+            numbers = [known.setdefault(str(label), len(known)) for label in found]
+            out = np.array(numbers, dtype=np.uint32)[where]
+        cells[start:stop] = out
+
+    assert cells is not None
     source = getattr(system, "__name__", None) or repr(system)
-    return Table(table_axes, values, method, source, labels)
+    if not worded:
+        return Table(table_axes, cells.reshape(shape), method or "linear", source)
+    kind = np.min_scalar_type(len(known) - 1) if dtype is None else np.dtype(dtype)
+    if not np.issubdtype(kind, np.integer) or len(known) - 1 > np.iinfo(kind).max:
+        raise ValueError(f"{len(known)} labels cannot be counted in {kind}")
+    values = cells.astype(kind).reshape(shape)
+    return Table(table_axes, values, "nearest", source, known)

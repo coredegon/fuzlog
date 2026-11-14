@@ -7,11 +7,13 @@
 - variables: ``Variable`` and ``partition``;
 - rules: ``temp.hot & humidity.high >> fan.fast``;
 - inference: ``Mamdani`` and ``Sugeno``;
+- words: ``Labels`` names the strongest terms of the inputs;
 - plots: ``variable.plot()``, ``system.plot(...)``, ``system.surface(...)``;
 - tables: ``compile(system)`` for lookup speed, ``table.save(path)`` and ``load``.
 """
 
 from fuzlog.core import (
+    Labels,
     Mamdani,
     Sugeno,
     bell,
@@ -51,6 +53,7 @@ __all__ = [
     "Array",
     "Defuzzifier",
     "Kernel",
+    "Labels",
     "Mamdani",
     "Norm",
     "Prop",

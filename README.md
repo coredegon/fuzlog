@@ -51,9 +51,10 @@ print(*tipper.rules, sep="\n")
   constant or functional conclusions.
 - **Arrays.** A scalar gives a float, arrays give arrays, and inputs broadcast
   against each other.
-- **Tables.** `compile` turns a system into a lookup table, also over transformed
-  inputs, and a list of variables into a table of names such as `hot_wet`;
-  `table.save(path)` and `load(path)` keep it on disk.
+- **Labels.** `Labels` describes inputs in words, such as `hot_wet`.
+- **Tables.** `compile` turns a system, `Labels` or any function into a lookup
+  table, also over transformed inputs; `table.save(path)` and `load(path)` keep
+  it on disk.
 - **Plots.** `variable.plot()`, `system.plot(...)`, `system.surface(x, y)`.
 
 ## Documentation

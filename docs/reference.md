@@ -82,6 +82,12 @@ aggregation=np.maximum, defuzz=centroid, points=101)`**
 `system.surface(...)`, `rules` and `inputs` with the same meaning. A function in a
 conclusion is called as `then(**inputs)`.
 
+**`Labels(*variables, sep="_")`** describes inputs in words. `labels(**inputs)` is
+the strongest term of every variable, joined by `sep`: a string for scalars, else
+an array of strings of the broadcast shape. Of equal terms the first wins; the
+label is empty where an input is NaN or belongs to no term. `inputs` holds the
+variables by name.
+
 ### Norms
 
 A norm is a function of two broadcastable arrays of degrees.
@@ -102,27 +108,27 @@ per set: NaN for an empty one. [Meanings](guide.md#defuzzification).
 
 **`compile(system, axes=None, *, transform=None, points=101, method=None,
 dtype=None)`** evaluates `system` on a grid and returns a
-`Table`. The system is a `Mamdani`, a `Sugeno`, a proposition or any function of
-keyword arrays. A list of variables gives a table of names: the strongest term of
-every variable, joined by `_`.
+`Table`. The system is anything called with keyword arrays: a `Mamdani`, a
+`Sugeno`, a `Labels`, a proposition or a function of your own. One that answers
+with strings gives a table of labels.
 
 | Argument | Meaning |
 |---|---|
 | `axes` | the inputs of the table by name: a number of points over the universe of that variable, `(low, high)` or `(low, high, points)`; by default every input of the system |
 | `transform` | function of the table's inputs, as keyword arrays, that returns the system's inputs by name; needs `axes` |
 | `points` | points of every axis that gives none |
-| `method` | `"linear"`, the default, interpolates between nodes; `"nearest"` takes the closest one, as a table of names always does |
-| `dtype` | type of the stored numbers: by default `np.float64`, and for names the smallest type that counts them |
+| `method` | `"linear"`, the default, interpolates between nodes; `"nearest"` takes the closest one, as a table of labels always does |
+| `dtype` | type of the stored numbers: by default `np.float64`, and for labels the smallest whole type that counts them |
 
 **`Table`**
 
 | Member | Meaning |
 |---|---|
-| `table(**inputs)` | the looked-up output, with the shapes of `system(**inputs)`; inputs outside an axis take its nearest end, or wrap around if the variable is periodic; NaN gives NaN. A table of names gives strings, empty for NaN |
-| `table.codes(**inputs)` | for a table of names, the position of the name in `labels`; -1 where an input is NaN |
+| `table(**inputs)` | the looked-up output, with the shapes of `system(**inputs)`; inputs outside an axis take its nearest end, or wrap around if the variable is periodic; NaN gives NaN. A table of labels gives strings, empty for NaN |
+| `table.codes(**inputs)` | for a table of labels, the position of the label in `labels`; -1 where an input is NaN |
 | `table.save(path, *, compress=False)` | writes a NumPy `.npz` archive |
 | `axes`, `values`, `method`, `source` | the axes, the array with one dimension per axis, the method, the text of what was compiled |
-| `labels` | the names of a table of names, else `None` |
+| `labels` | the distinct strings of a table of labels, else `None` |
 
 **`load(path)`** reads a saved table. The file holds the numbers and the axes, not
 the rules: the system cannot be rebuilt from it.

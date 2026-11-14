@@ -1,7 +1,8 @@
 """Everything that computes: membership functions, partitions, norms and inference.
 
 The module reads top to bottom: shapes of fuzzy sets, partitions of a universe,
-hedges, norms, defuzzifiers and, built on all of them, the two inference systems.
+hedges, norms, defuzzifiers and, built on all of them, the two inference systems
+and the description of inputs in words.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ from numbers import Real
 from typing import TYPE_CHECKING, overload
 
 import numpy as np
-from numpy.typing import ArrayLike
+from numpy.typing import ArrayLike, NDArray
 
 from fuzlog.types import (
     MF,
@@ -722,3 +723,57 @@ class Sugeno:
 
     def __repr__(self) -> str:
         return f"Sugeno({len(self.rules)} rules: {', '.join(self.inputs)})"
+
+
+class Labels:
+    """Describe inputs in words: the strongest term of every variable.
+
+    The terms are joined by ``sep`` in the order of the variables::
+
+        describe = Labels(temp, humid, sep=" ")
+        describe(temp=31, humid=80)  # "hot wet"
+
+    Inputs are passed by variable name, as scalars or as arrays that broadcast
+    against each other; a scalar gives a string and arrays give an array of
+    strings. Of terms that hold equally the first one wins. The label is empty
+    where an input is NaN or belongs to no term of its variable.
+
+    Args:
+        *variables: The variables to describe.
+        sep: What joins the terms.
+    """
+
+    def __init__(self, *variables: Variable, sep: str = "_") -> None:
+        strangers = [v for v in variables if not isinstance(v, Variable)]
+        if not variables or strangers:
+            raise TypeError(f"Labels describe variables, got {strangers or variables}")
+        self.inputs = {variable.name: variable for variable in variables}
+        if len(self.inputs) < len(variables):
+            raise ValueError(f"the variables must differ, got {list(variables)}")
+        self.sep = sep
+        terms = itertools.product(*(variable.terms for variable in variables))
+        # The empty label closes the list: it is what the number -1 counts to.
+        self._words = np.array([*(sep.join(names) for names in terms), ""])
+
+    @overload
+    def __call__(self, **inputs: float) -> str: ...
+    @overload
+    def __call__(self, **inputs: ArrayLike) -> NDArray[np.str_]: ...
+    def __call__(self, **inputs: ArrayLike) -> NDArray[np.str_] | str:
+        """Describe the given inputs."""
+        missing = [name for name in self.inputs if name not in inputs]
+        if missing:
+            raise TypeError(f"missing input {missing[0]!r}")
+        values = {name: np.asarray(inputs[name], np.float64) for name in self.inputs}
+        shape = np.broadcast_shapes(*(x.shape for x in values.values()))
+        number: NDArray[np.intp] = np.zeros(1, dtype=np.intp)
+        blank: NDArray[np.bool_] = np.zeros(1, dtype=np.bool_)
+        for name, variable in self.inputs.items():
+            degrees = variable(np.atleast_1d(values[name]))
+            number = number * len(variable.terms) + degrees.argmax(axis=0)
+            blank = blank | ~(degrees.max(axis=0) > 0.0)
+        words = self._words[np.where(blank, -1, number)]
+        return np.broadcast_to(words, shape).copy() if shape else str(words.item())
+
+    def __repr__(self) -> str:
+        return f"Labels({', '.join(self.inputs)})"

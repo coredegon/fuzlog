@@ -224,6 +224,22 @@ print(heater(temp=17.5))  # 40.0
 print(heater(temp=[5, 17.5, 28]).tolist())  # [10.0, 40.0, 80.4]
 ```
 
+## Labels
+
+`Labels` describes inputs in words: the strongest term of every variable, joined
+by `sep` in the order of the variables.
+
+```python
+words = fz.Labels(temp, humid)
+print(words(temp=27, humid=40))  # hot_comfortable
+print(words(temp=[5, 18, 33], humid=90).tolist())
+# ['cold_wet', 'warm_wet', 'hot_wet']
+print(fz.Labels(humid, temp, sep=" and ")(temp=27, humid=40))  # comfortable and hot
+```
+
+Of terms that hold equally the first one wins. The label is empty where an input
+is NaN or belongs to no term of its variable.
+
 ## Tables
 
 `compile` evaluates a system on a grid of its inputs and returns a `Table`. The
@@ -273,31 +289,28 @@ imperial = fz.compile(cooler, axes, transform=metric)
 print(round(imperial(fahrenheit=81.14, moisture=0.41), 2))  # 63.75
 ```
 
-### Naming the inputs
+### Tables of labels
 
-A list of variables, in place of a system, compiles into a table of names. It
-answers with the strongest term of every variable, joined by `_`:
-
-```python
-names = fz.compile([temp, humid])
-print(names)  # Table(temp[101] x humid[101], 9 names, from names(temp, humid))
-print(names(temp=27, humid=40))  # hot_comfortable
-print(names(temp=[5, 18, 33], humid=90).tolist())
-# ['cold_wet', 'warm_wet', 'hot_wet']
-```
-
-The table keeps one small whole number per node, the position of the name in
-`names.labels`, and is saved together with the labels. `codes` returns these
-numbers instead of the strings, which is cheaper for large arrays:
+A system that answers with strings, such as `Labels` or a function of your own,
+compiles into a table of labels. It keeps the distinct strings once, in
+`table.labels`, and a small whole number per node; both are saved together.
 
 ```python
-print(names.labels[:4])
-# ('cold_dry', 'cold_comfortable', 'cold_wet', 'warm_dry')
-print(names.codes(temp=[5, 18, 33], humid=90).tolist())  # [2, 5, 8]
+named = fz.compile(words)
+print(named)  # Table(temp[101] x humid[101], 9 labels, from Labels(temp, humid))
+print(named(temp=27, humid=40))  # hot_comfortable
 ```
 
-Axes and a `transform` work as for a system, so the names of a colour can be
-looked up by its red, green and blue levels.
+`codes` looks up the position of the label in `table.labels` instead of the
+string, which is cheaper to compare and to store for large arrays:
+
+```python
+code = named.codes(temp=27, humid=40)
+print(named.labels[code])  # hot_comfortable
+```
+
+Labels cannot be interpolated, so such a table always answers with the closest
+node.
 
 A table holds one number per node: `points` to the power of the number of inputs.
 `dtype=np.float32` halves it.
