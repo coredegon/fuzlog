@@ -1,8 +1,9 @@
 # Reference
 
 Everything is reached from the package: `import fuzlog as fz`. The code lives in
-three modules: `fuzlog.types` (the data model), `fuzlog.core` (everything that
-computes) and `fuzlog.plotting` (matplotlib views, imported on first use).
+four modules: `fuzlog.types` (the data model), `fuzlog.core` (everything that
+computes), `fuzlog.table` (compiled lookup tables) and `fuzlog.plotting` (matplotlib
+views, imported on first use).
 
 ## Sets
 
@@ -96,6 +97,33 @@ A norm is a function of two broadcastable arrays of degrees.
 `centroid(x, mu)`, `bisector(x, mu)`, `mom(x, mu)`, `som(x, mu)`, `lom(x, mu)` take
 a grid `x` and degrees `mu` whose last axis runs over the grid, and return one value
 per set: NaN for an empty one. [Meanings](guide.md#defuzzification).
+
+## Tables
+
+**`compile(system, axes=None, *, transform=None, points=101, method="linear",
+dtype=np.float64, workers=None)`** evaluates `system` on a grid and returns a
+`Table`. The system is a `Mamdani`, a `Sugeno`, a proposition or any function of
+keyword arrays.
+
+| Argument | Meaning |
+|---|---|
+| `axes` | the inputs of the table by name: a number of points over the universe of that variable, `(low, high)` or `(low, high, points)`; by default every input of the system |
+| `transform` | function of the table's inputs, as keyword arrays, that returns the system's inputs by name; needs `axes` |
+| `points` | points of every axis that gives none |
+| `method` | `"linear"` interpolates between nodes, `"nearest"` takes the closest one |
+| `dtype` | type of the stored numbers |
+| `workers` | threads that evaluate the grid: by default one per CPU on a free-threaded Python, else one |
+
+**`Table`**
+
+| Member | Meaning |
+|---|---|
+| `table(**inputs)` | the looked-up output, with the shapes of `system(**inputs)`; inputs outside an axis take its nearest end, or wrap around if the variable is periodic; NaN gives NaN |
+| `table.save(path, *, compress=False)` | writes a NumPy `.npz` archive |
+| `axes`, `values`, `method`, `source` | the axes, the array with one dimension per axis, the method, the text of what was compiled |
+
+**`load(path)`** reads a saved table. The file holds the numbers and the axes, not
+the rules: the system cannot be rebuilt from it.
 
 ## Plotting
 

@@ -55,17 +55,18 @@ def same(printed, wanted):
 
 
 @pytest.fixture
-def _quiet_plots(monkeypatch):
+def _sandbox(monkeypatch, tmp_path):
     matplotlib = pytest.importorskip("matplotlib")
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     monkeypatch.setattr(plt, "show", lambda *args, **kwargs: None)
+    monkeypatch.chdir(tmp_path)  # examples that save do not litter the repository
     yield
     plt.close("all")
 
 
-@pytest.mark.usefixtures("_quiet_plots")
+@pytest.mark.usefixtures("_sandbox")
 @pytest.mark.parametrize(
     "page", PAGES, ids=[page.relative_to(ROOT).as_posix() for page in PAGES]
 )

@@ -224,6 +224,60 @@ print(heater(temp=17.5))  # 40.0
 print(heater(temp=[5, 17.5, 28]).tolist())  # [10.0, 40.0, 80.4]
 ```
 
+## Tables
+
+`compile` evaluates a system on a grid of its inputs and returns a `Table`. The
+table is called like the system, but answers by looking the inputs up, so its speed
+does not depend on the number of rules. Between the nodes of the grid it
+interpolates, so the answer is close to the system's and gets closer with more
+`points`.
+
+```python
+table = fz.compile(cooler, points=201)
+print(table)
+# Table(temp[201] x humid[201], linear, from Mamdani(3 rules: temp, humid -> fan))
+print(round(cooler(temp=27.3, humid=41), 2))  # 63.74
+print(round(table(temp=27.3, humid=41), 2))  # 63.75
+```
+
+A table is saved as numbers, so loading it needs neither the rules nor the code
+that built them:
+
+```python
+table.save("cooler.npz")
+table = fz.load("cooler.npz")
+print(round(table(temp=27.3, humid=41), 2))  # 63.75
+```
+
+By default every input variable is sampled at `points` values of its universe. A
+mapping of axes sets them one by one: a number of points for a variable, or a range
+`(low, high)` or `(low, high, points)`.
+
+`method="nearest"` answers with the closest node instead of interpolating. It is
+faster, and exact when the inputs only take the values of the nodes, like the
+levels of an 8-bit channel on the axis `(0, 255, 256)`.
+
+### Transforming the inputs
+
+A `transform` makes a table over other quantities than the system reads. It
+receives the inputs of the table as arrays and returns the inputs of the system by
+name. It runs only while the table is compiled, so its cost is paid once.
+
+```python
+def metric(fahrenheit, moisture):
+    return {"temp": (fahrenheit - 32) / 1.8, "humid": 100 * moisture}
+
+
+axes = {"fahrenheit": (32, 104, 289), "moisture": (0, 1, 201)}
+imperial = fz.compile(cooler, axes, transform=metric)
+print(round(imperial(fahrenheit=81.14, moisture=0.41), 2))  # 63.75
+```
+
+A table holds one number per node: `points` to the power of the number of inputs.
+`dtype=np.float32` halves it. `workers` sets the number of threads that evaluate
+the grid; they help on a free-threaded Python, which is where they are on by
+default.
+
 ## Plots
 
 Plots need matplotlib: `pip install "fuzlog[plot]"`. Each call draws on the Axes it is
