@@ -101,7 +101,7 @@ per set: NaN for an empty one. [Meanings](guide.md#defuzzification).
 ## Tables
 
 **`compile(system, axes=None, *, transform=None, points=101, method="linear",
-dtype=np.float64, workers=None)`** evaluates `system` on a grid and returns a
+dtype=np.float64)`** evaluates `system` on a grid and returns a
 `Table`. The system is a `Mamdani`, a `Sugeno`, a proposition or any function of
 keyword arrays.
 
@@ -112,7 +112,6 @@ keyword arrays.
 | `points` | points of every axis that gives none |
 | `method` | `"linear"` interpolates between nodes, `"nearest"` takes the closest one |
 | `dtype` | type of the stored numbers |
-| `workers` | threads that evaluate the grid: by default one per CPU on a free-threaded Python, else one |
 
 **`Table`**
 

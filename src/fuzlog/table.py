@@ -12,10 +12,8 @@ import itertools
 import json
 import math
 import os
-import sys
 import zipfile
 from collections.abc import Callable, Iterable, Mapping
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Literal, NamedTuple, overload
 
@@ -28,7 +26,7 @@ type Span = int | tuple[float, float] | tuple[float, float, int]
 type Method = Literal["linear", "nearest"]
 
 _FORMAT = 1  # version of the file layout
-_CHUNK = 1 << 14  # grid nodes a worker evaluates in one call of the system
+_CHUNK = 1 << 14  # grid nodes evaluated in one call of the system
 
 
 class Axis(NamedTuple):
@@ -257,7 +255,6 @@ def compile(
     points: int = 101,
     method: Method = "linear",
     dtype: DTypeLike = np.float64,
-    workers: int | None = None,
 ) -> Table:
     """Evaluate a system on a grid of its inputs and keep the results in a table.
 
@@ -290,9 +287,6 @@ def compile(
         points: Number of points of every axis that does not give its own.
         method: How the table answers between its nodes: ``linear`` or ``nearest``.
         dtype: Type of the stored numbers; ``np.float32`` halves a large table.
-        workers: Number of threads that evaluate the grid. By default one per CPU
-            on a free-threaded Python and one otherwise: under the global
-            interpreter lock more threads do not make this faster.
     """
     if transform is not None and axes is None:
         raise TypeError("a transform needs axes: the inputs of the table")
@@ -302,7 +296,7 @@ def compile(
     values = np.empty(shape, dtype=dtype)
     cells = values.reshape(-1)
 
-    def evaluate(start: int) -> None:
+    for start in range(0, cells.size, _CHUNK):
         stop = min(start + _CHUNK, cells.size)
         nodes = np.unravel_index(np.arange(start, stop), shape)
         inputs: Mapping[str, ArrayLike] = {
@@ -317,18 +311,5 @@ def compile(
                     f"got {type(inputs).__name__}"
                 )
         cells[start:stop] = np.broadcast_to(system(**inputs), stop - start)
-
-    starts = range(0, cells.size, _CHUNK)
-    if workers is None:
-        locked = getattr(sys, "_is_gil_enabled", lambda: True)()
-        workers = 1 if locked else os.cpu_count() or 1
-    threads = min(workers, len(starts))
-    if threads <= 1:
-        for start in starts:
-            evaluate(start)
-    else:
-        with ThreadPoolExecutor(threads) as pool:
-            for _ in pool.map(evaluate, starts):  # raises what a worker raised
-                pass
     source = getattr(system, "__name__", None) or repr(system)
     return Table(table_axes, values, method, source)

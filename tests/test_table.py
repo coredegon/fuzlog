@@ -1,5 +1,3 @@
-import threading
-
 import numpy as np
 import pytest
 
@@ -131,21 +129,18 @@ def test_axes_take_points_or_ranges():
         fz.compile(COOLER, points=3, method="cubic")  # ty: ignore[invalid-argument-type]
 
 
-def test_workers_give_the_same_table():
-    seen = set()
+def test_a_large_grid_is_evaluated_in_pieces():
+    sizes = []
 
     def system(x, y):
-        seen.add(threading.get_ident())
+        sizes.append(x.size)
         return plane(x, y)
 
-    axes = {"x": (0, 1, 300), "y": (0, 1, 300)}
-    alone = fz.compile(system, axes, workers=1)
-    assert seen == {threading.get_ident()}
-    together = fz.compile(system, axes, workers=4)
-    assert len(seen) > 1
-    np.testing.assert_array_equal(alone.values, together.values)
-    with pytest.raises(ZeroDivisionError):
-        fz.compile(lambda x, y: 1 / 0, axes, workers=4)
+    table = fz.compile(system, {"x": (0, 1, 300), "y": (0, 1, 300)})
+    assert len(sizes) > 1
+    assert sum(sizes) == 300 * 300
+    x, y = np.meshgrid(*(axis.grid() for axis in table.axes), indexing="ij")
+    np.testing.assert_array_equal(table.values, plane(x, y))
 
 
 @pytest.mark.parametrize("compress", [False, True])

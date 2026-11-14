@@ -274,9 +274,7 @@ print(round(imperial(fahrenheit=81.14, moisture=0.41), 2))  # 63.75
 ```
 
 A table holds one number per node: `points` to the power of the number of inputs.
-`dtype=np.float32` halves it. `workers` sets the number of threads that evaluate
-the grid; they help on a free-threaded Python, which is where they are on by
-default.
+`dtype=np.float32` halves it.
 
 ## Plots
 
