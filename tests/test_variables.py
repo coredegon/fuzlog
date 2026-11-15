@@ -84,3 +84,14 @@ BAD = {
 def test_bad_partitions_are_rejected(build):
     with pytest.raises(ValueError, match=r"must|needs"):
         build()
+
+
+def test_a_circle_has_no_place_for_infinity():
+    wind = fz.partition("wind", (0, 360), ["n", "e", "s", "w"], periodic=True)
+    assert np.isnan(wind([np.inf, -np.inf, np.nan])).all()
+    assert wind.fuzzify(np.inf).keys() == wind.terms.keys()
+
+
+def test_terms_of_a_partition_differ():
+    with pytest.raises(ValueError, match="must differ"):
+        fz.partition("x", (0, 1), ["low", "low", "high"])

@@ -63,6 +63,8 @@ class MF:
         return MF(lambda x: 1.0 - self.fn(x), f"~{self}")
 
     def __pow__(self, power: float) -> MF:
+        if not power > 0.0:
+            raise ValueError(f"a set is raised to a positive power, got {power}")
         return MF(lambda x: self.fn(x) ** power, f"{self}**{power:g}")
 
     def __bool__(self) -> bool:

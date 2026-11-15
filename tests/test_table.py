@@ -171,6 +171,9 @@ def test_load_refuses_other_files(tmp_path):
     (tmp_path / "text.npz").write_text("not a table")
     with pytest.raises(ValueError, match="not a fuzlog table"):
         fz.load(tmp_path / "text.npz")
+    np.save(tmp_path / "array.npy", np.zeros(3))
+    with pytest.raises(ValueError, match="not a fuzlog table"):
+        fz.load(tmp_path / "array.npy")
     np.savez(tmp_path / "arrays.npz", values=np.zeros(3))
     with pytest.raises(ValueError, match="not a fuzlog table"):
         fz.load(tmp_path / "arrays.npz")
@@ -279,3 +282,32 @@ def test_labels_are_refused_where_they_make_no_sense():
         fz.Table(axes, np.zeros(3), "nearest", labels=["a"])
     with pytest.raises(ValueError, match="do not fit"):
         fz.Table(axes, np.array([0, 1, 2]), "nearest", labels=["a", "b"])
+
+
+def test_text_of_any_kind_makes_labels():
+    def as_bytes(x):
+        return np.where(x < 0.5, b"low", b"high")
+
+    def as_objects(x):
+        return np.array(["low" if value < 0.5 else "high" for value in x], dtype=object)
+
+    for system in (as_bytes, as_objects):
+        table = fz.compile(system, {"x": (0, 1, 5)})
+        assert table.labels == ("high", "low")
+        assert table(x=0.1) == "low"
+
+
+def test_points_may_be_numpy_integers():
+    table = fz.compile(COOLER, {"temp": np.int64(5), "humid": np.int32(3)})
+    assert table.values.shape == (5, 3)
+
+
+def test_a_table_built_by_hand_is_checked():
+    axis = fz.table.Axis("x", 0.0, 1.0, 3)
+    assert fz.Table([axis], [0.0, 1.0, 4.0])(x=0.75) == 2.5
+    with pytest.raises(ValueError, match="at least 2 points"):
+        fz.Table([fz.table.Axis("x", 0.0, 1.0, 1)], [3.0])
+    with pytest.raises(ValueError, match="low < high"):
+        fz.Table([fz.table.Axis("x", 1.0, 0.0, 3)], [0.0, 1.0, 2.0])
+    with pytest.raises(ValueError, match="do not fit the axes"):
+        fz.Table([axis], [0.0, 1.0])

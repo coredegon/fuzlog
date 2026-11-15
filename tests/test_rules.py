@@ -55,3 +55,8 @@ def test_hedges_change_sets_and_propositions():
     assert fz.somewhat(tall)(170.0) == 0.5
     assert fz.extremely(TEMP.hot)(temp=25) == 0.125
     assert repr(fz.somewhat(TEMP.hot)) == "somewhat (temp is hot)"
+
+
+def test_propositions_take_positive_powers_only():
+    with pytest.raises(ValueError, match="positive power"):
+        TEMP.hot**-2

@@ -131,7 +131,8 @@ class Variable:
         low, high = self.universe
         if not self.periodic or x.size == 0 or (x.min() >= low and x.max() < high):
             return x
-        return low + np.mod(x - low, high - low)
+        with np.errstate(invalid="ignore"):  # an infinite value has no place
+            return low + np.mod(x - low, high - low)
 
     def __repr__(self) -> str:
         low, high = self.universe
@@ -170,7 +171,10 @@ def partition(
     elif more:
         raise TypeError("give either term names or cores, not both")
     else:
-        named = dict.fromkeys(cores)
+        names = list(cores)
+        named = dict.fromkeys(names)
+        if len(named) < len(names):
+            raise ValueError(f"the terms of a partition must differ, got {names}")
         even = np.linspace(low, high, len(named), endpoint=not periodic).tolist()
         spans = [(c, c) for c in even]
     if len(named) < 2:

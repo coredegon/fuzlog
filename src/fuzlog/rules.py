@@ -48,6 +48,10 @@ class Prop:
         return Prop("not", self)
 
     def __pow__(self, power: float) -> Prop:
+        if not power > 0.0:
+            raise ValueError(
+                f"a proposition is raised to a positive power, got {power}"
+            )
         return Prop("pow", self, float(power))
 
     def __rshift__(self, then: Prop | float | Callable[..., ArrayLike]) -> Rule:

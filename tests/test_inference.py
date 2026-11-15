@@ -151,3 +151,15 @@ def test_labels_need_variables_and_inputs():
         fz.Labels(temp, temp)
     with pytest.raises(TypeError, match="missing input 'temp'"):
         fz.Labels(temp)(humid=3)
+
+
+def test_sugeno_conclusion_counts_only_where_its_rule_fires():
+    x = fz.partition("x", (0, 10), low=2, high=8)
+    system = fz.Sugeno(x.low >> 1.0, x.high >> (lambda x: 1.0 / (x - 1.0)))
+    with np.errstate(divide="ignore"):
+        assert system(x=[1.0, 8.0]).tolist() == [1.0, 1.0 / 7.0]
+
+
+def test_labels_separator_is_a_string():
+    with pytest.raises(TypeError, match="sep must be a string"):
+        fz.Labels(QUALITY, sep=1)  # ty: ignore[invalid-argument-type]

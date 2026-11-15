@@ -27,7 +27,7 @@ from fuzlog.rules import Prop
 from fuzlog.types import Array
 from fuzlog.variables import Variable
 
-type Span = int | tuple[float, float] | tuple[float, float, int]
+type Span = int | np.integer | tuple[float, float] | tuple[float, float, int]
 type Method = Literal["linear", "nearest"]
 
 _FORMATS = (1, 2)  # versions of the file layout: 2 adds the labels
@@ -72,6 +72,17 @@ class Axis(NamedTuple):
         return at, missing
 
 
+def _checked(axis: Axis) -> Axis:
+    """Return the axis if a table can be laid along it."""
+    finite = math.isfinite(axis.low) and math.isfinite(axis.high)
+    if not (finite and axis.low < axis.high and axis.points >= 2):
+        raise ValueError(
+            f"the axis {axis.name!r} needs finite low < high and at least 2 points, "
+            f"got ({axis.low:g}, {axis.high:g}, {axis.points})"
+        )
+    return axis
+
+
 class Table:
     """A compiled system: its output on a grid of the inputs.
 
@@ -94,12 +105,13 @@ class Table:
     def __init__(
         self,
         axes: Iterable[Axis],
-        values: np.ndarray,
+        values: ArrayLike,
         method: Method = "linear",
         source: str = "",
         labels: Iterable[str] | None = None,
     ) -> None:
-        self.axes = tuple(axes)
+        self.axes = tuple(_checked(axis) for axis in axes)
+        values = np.asarray(values)
         if method not in ("linear", "nearest"):
             raise ValueError(f"method is 'linear' or 'nearest', got {method!r}")
         if values.shape != tuple(axis.points for axis in self.axes) or not self.axes:
@@ -243,7 +255,10 @@ class Table:
 def load(path: str | os.PathLike[str]) -> Table:
     """Read a table that :meth:`Table.save` wrote."""
     try:
-        with np.load(path, allow_pickle=False) as data:
+        data = np.load(path, allow_pickle=False)
+        if isinstance(data, np.ndarray):
+            raise ValueError("a single array")
+        with data:
             meta = json.loads(str(data["meta"][()]))
             values = data["values"]
     except (KeyError, ValueError, zipfile.BadZipFile) as error:
@@ -273,27 +288,31 @@ def _axes(
         spans = dict.fromkeys(known, points)
     axes = []
     for name, span in spans.items():
-        if isinstance(span, int):
+        if isinstance(span, int | np.integer):
             if name not in known:
                 raise ValueError(
                     f"{name!r} is not an input of the system: "
                     f"give its range as (low, high, points)"
                 )
             variable = known[name]
-            axis = Axis(name, *variable.universe, span, variable.periodic)
+            axis = Axis(name, *variable.universe, int(span), variable.periodic)
         else:
             low, high, *rest = span
             axis = Axis(name, float(low), float(high), int(rest[0]) if rest else points)
-        if not (math.isfinite(axis.low) and math.isfinite(axis.high)):
-            raise ValueError(f"the axis {name!r} needs finite bounds, got {span}")
-        if axis.low >= axis.high or axis.points < 2:
-            raise ValueError(
-                f"the axis {name!r} needs low < high and at least 2 points, got {span}"
-            )
-        axes.append(axis)
+        axes.append(_checked(axis))
     if not axes:
         raise ValueError("a table needs at least one axis")
     return axes
+
+
+def _answer(given: object) -> np.ndarray:
+    """What a system gave, as an array: of strings if it gave text of any kind."""
+    out = np.asarray(given)
+    if out.dtype.kind == "S":
+        return np.char.decode(out)
+    if out.dtype.kind == "O" and all(isinstance(item, str) for item in out.flat):
+        return out.astype(np.str_)
+    return out
 
 
 def compile(
@@ -368,8 +387,8 @@ def compile(
                     f"a transform returns the inputs of the system by name, "
                     f"got {type(inputs).__name__}"
                 )
-        out = np.asarray(system(**inputs))
-        strings = out.dtype.kind in "US"
+        out = _answer(system(**inputs))
+        strings = out.dtype.kind == "U"
         if cells is None:
             worded = strings
             if worded and method == "linear":

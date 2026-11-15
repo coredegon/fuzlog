@@ -291,8 +291,11 @@ class Sugeno:
         weighted, total = np.zeros(1), np.zeros(1)
         for strength, rule in zip(fired, self.rules, strict=True):
             then = rule.then
-            value = np.asarray(then(**values)) if callable(then) else then
-            weighted = weighted + strength * value
+            if callable(then):  # counts only where its rule fires
+                value = np.where(strength > 0.0, np.asarray(then(**values)), 0.0)
+                weighted = weighted + strength * value
+            else:
+                weighted = weighted + strength * then
             total = total + strength
         with np.errstate(invalid="ignore"):
             out = weighted / total
@@ -339,6 +342,8 @@ class Labels:
         strangers = [v for v in variables if not isinstance(v, Variable)]
         if not variables or strangers:
             raise TypeError(f"Labels describe variables, got {strangers or variables}")
+        if not isinstance(sep, str):
+            raise TypeError(f"sep must be a string, got {sep!r}")
         self.inputs = {variable.name: variable for variable in variables}
         if len(self.inputs) < len(variables):
             raise ValueError(f"the variables must differ, got {list(variables)}")

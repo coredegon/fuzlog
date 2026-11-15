@@ -85,3 +85,10 @@ def test_sets_combine_pointwise():
     )
     custom = fz.MF(lambda v: np.exp(-np.abs(v)), "spike")
     assert (custom(0.0), repr(custom)) == (1.0, "spike")
+
+
+def test_sets_take_positive_powers_only():
+    with pytest.raises(ValueError, match="positive power"):
+        fz.rising(0, 1) ** -1
+    with pytest.raises(ValueError, match="positive power"):
+        fz.rising(0, 1) ** 0
