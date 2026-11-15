@@ -8,12 +8,11 @@ data wears colour. Matplotlib itself is imported by the first plot.
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from fuzlog.systems import Mamdani, Sugeno
-from fuzlog.types import Array
 from fuzlog.variables import Variable
 
 if TYPE_CHECKING:
@@ -21,7 +20,7 @@ if TYPE_CHECKING:
 
 # Eight hues that stay apart under colour blindness when neighbours take
 # neighbouring slots: one row for light surfaces, one for dark. Terms take them in
-# order; with more terms than hues every curve wears the first.
+# order, and start over after the eighth.
 _HUES = (
     ("#2a78d6", "#eb6834", "#1baf7a", "#eda100",
      "#e87ba4", "#008300", "#6250d6", "#e34948"),
@@ -42,7 +41,7 @@ def plot(what: Variable | Mamdani, ax: Axes | None = None, /, **inputs: float) -
     """Draw a variable, or what a Mamdani system infers for scalar inputs.
 
     ```python
-    fz.plot(temp)                          # every term, named above its peak
+    fz.plot(temp)                          # every term, named in a legend below
     fz.plot(cooler, temp=27, humid=40)     # the output set and its crisp value
     ```
     """
@@ -114,52 +113,46 @@ def _canvas(ax: Axes | None, size: tuple[float, float]) -> tuple[Axes, str]:
 
 
 def _terms(variable: Variable, ax: Axes, *, linewidth: float, wash: float) -> None:
-    """Draw the curve of every term and write the term names along the top."""
+    """Draw the curve of every term and name the terms in a legend below."""
     low, high = variable.universe
     x = np.linspace(low, high, _SAMPLES)
-    degrees = variable(x)
     hues = _HUES[_dark(ax)]
-    for i, curve in enumerate(degrees):
-        hue = hues[i] if len(degrees) <= len(hues) else hues[0]
-        ax.plot(x, curve, color=hue, linewidth=linewidth)
+    curves = []
+    for i, (term, curve) in enumerate(zip(variable.terms, variable(x), strict=True)):
+        hue = hues[i % len(hues)]
+        # Only where the term is, so the zeros don't pile up along the bottom.
+        inside = np.convolve(curve > 0, np.ones(3), mode="same") > 0
+        shown = np.where(inside, curve, np.nan)
+        curves += ax.plot(x, shown, color=hue, linewidth=linewidth, label=term)
         if wash:
             ax.fill_between(x, curve, color=hue, alpha=wash, linewidth=0)
-    places, terms = _peaks(variable).tolist(), list(variable.terms)
-    owner = int(degrees[:, 0].argmax())
-    if variable.periodic and degrees[owner, 0] > 0.5:
-        # The term that owns the seam is named at the far end too.
-        places.append(low if places[owner] > (low + high) / 2 else high)
-        terms.append(terms[owner])
-    names = ax.secondary_xaxis("top")
-    crowded = len(terms) > 6
-    names.set_xticks(
-        places,
-        labels=terms,
-        rotation=45 if crowded else 0,
-        ha="left" if crowded else "center",
-        rotation_mode="anchor",
-    )
-    names.tick_params(length=0)
-    names.spines["top"].set_visible(False)
     ax.set(xlim=(low, high), ylim=(0.0, 1.05), yticks=(0.0, 0.5, 1.0))
     ax.set(xlabel=variable.name, ylabel="membership")
     ax.spines[["top", "right"]].set_visible(False)
+    _legend_below(ax, curves)
 
 
-def _peaks(variable: Variable) -> Array:
-    """The most typical value of every term: the middle of where it is highest.
+def _legend_below(ax: Axes, handles: list[Any]) -> None:
+    """Name the handles in a legend under the axis label, five to a row at most.
 
-    On a periodic universe the middle is found going around the circle.
+    A legend fills column after column; the handles are dealt so that they
+    read in order along the rows.
     """
-    x = variable.grid(2001)
-    degrees = variable(x)
-    core = (degrees >= degrees.max(axis=1, keepdims=True) - 1e-9).astype(np.float64)
-    if not variable.periodic:
-        return (core @ x) / core.sum(axis=1)
-    low, high = variable.universe
-    angle = (x - low) * (math.tau / (high - low))
-    middle = np.arctan2(core @ np.sin(angle), core @ np.cos(angle)) % math.tau
-    return low + middle * ((high - low) / math.tau)
+    columns = math.ceil(len(handles) / math.ceil(len(handles) / 5))
+    dealt = [
+        handles[i] for j in range(columns) for i in range(j, len(handles), columns)
+    ]
+    ax.legend(
+        handles=dealt,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.0),
+        borderaxespad=4.0,  # in font sizes: clear of the ticks and the axis label
+        ncol=columns,
+        frameon=False,
+        fontsize="small",
+        handlelength=1.6,
+        columnspacing=1.2,
+    )
 
 
 def _dark(ax: Axes) -> bool:
