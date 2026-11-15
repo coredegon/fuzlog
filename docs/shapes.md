@@ -1,14 +1,11 @@
-# Membership functions
+# Shapes
 
-Sixteen shapes cover the thirteen built into the MATLAB Fuzzy Logic Toolbox and the
-shapes of IEEE 1855 (Fuzzy Markup Language). Each call returns a `Set`.
+Sixteen shapes cover the thirteen of the MATLAB Fuzzy Logic Toolbox and those of
+IEEE 1855 (Fuzzy Markup Language). Each call returns a `Set`.
 
 ![The sixteen shapes](img/shapes.png)
 
-## Piecewise-linear
-
-Breakpoints are given in ascending order. Equal neighbours make a vertical edge, at
-which the set takes the larger value: `trapezoid(0, 0, 2, 4)` is 1 at 0.
+## Straight lines
 
 | fuzlog | Definition | MATLAB | IEEE 1855 |
 |---|---|---|---|
@@ -20,9 +17,10 @@ which the set takes the larger value: `trapezoid(0, 0, 2, 4)` is 1 at 0.
 | `singleton(a)` | 1 at `a`, 0 elsewhere | | SingletonShape |
 | `piecewise(points)` | straight lines through `(x, degree)` points, flat outside them | | UserShape |
 
-## Smooth
+Parameters ascend. Equal neighbours make a vertical edge, where the set takes the
+larger value: `trapezoid(0, 0, 2, 4)` is 1 at 0.
 
-Shapes with a centre take it first, then what sets their width.
+## Smooth curves
 
 | fuzlog | Definition | MATLAB | IEEE 1855 |
 |---|---|---|---|
@@ -36,26 +34,21 @@ Shapes with a centre take it first, then what sets their width.
 | `z_shape(a, b)` | `1 - s_shape(a, b)` | `zmf` | ZShape |
 | `pi_shape(a, b, c, d)` | `s_shape(a, b) · z_shape(c, d)` | `pimf` | PIShape |
 
-Coming from MATLAB, mind the order of the parameters: `gaussmf(x, [sigma c])` is
-`gauss(c, sigma)`, `sigmf(x, [a c])` is `sigmoid(c, a)`, `gbellmf(x, [a b c])` is
-`bell(c, a, b)`, and `gauss2mf`, `dsigmf` and `psigmf` change the same way.
+The centre comes first, then the width. Coming from MATLAB, mind the order:
+`gaussmf(x, [sigma c])` is `gauss(c, sigma)`, `sigmf(x, [a c])` is `sigmoid(c, a)`
+and `gbellmf(x, [a b c])` is `bell(c, a, b)`.
 
 ## Anything else
 
-Other shapes are built from these. The half-Gaussian shoulders of IEEE 1855 are a
-Gaussian joined to a step:
+Combine the shapes, or wrap a function of your own:
 
 ```python
 import numpy as np
 import fuzlog as fz
 
-shoulder = fz.gauss(5, 1) | fz.rising(5, 5)
+shoulder = fz.gauss(5, 1) | fz.rising(5, 5)  # the half-Gaussian of IEEE 1855
 print(shoulder([4.0, 5.0, 9.0]).round(3).tolist())  # [0.607, 1.0, 1.0]
-```
 
-and any function of an array is a set:
-
-```python
 cosine = fz.Set(lambda x: np.cos(np.clip(x - 5, -2, 2) * np.pi / 4) ** 2, "cosine")
 print(cosine([3.0, 4.0, 5.0]).round(3).tolist())  # [0.0, 0.5, 1.0]
 ```

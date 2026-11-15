@@ -1,78 +1,69 @@
 # Reference
 
-Everything is reached from the package: `import fuzlog as fz`. The code lives in
-one module per section of this page:
+Everything is reached from the package: `import fuzlog as fz`.
 
 | Module | Holds |
 |---|---|
-| `fuzlog.math` | plain NumPy functions: `curves`, `norms`, `defuzz`, `grid` |
-| `fuzlog.sets` | `MF` and the shapes |
-| `fuzlog.variables` | `Variable` and `partition` |
-| `fuzlog.rules` | `Prop`, `Rule` and the hedges |
-| `fuzlog.inference` | `Mamdani`, `Sugeno` and `Labels` |
-| `fuzlog.table` | `compile`, `Table` and `load` |
-| `fuzlog.plotting` | matplotlib views, imported on first use |
-| `fuzlog.types` | aliases for annotations |
+| [`fuzlog.sets`](#sets) | `Set` and the shapes |
+| [`fuzlog.variables`](#variables) | `Variable`, `partition` |
+| [`fuzlog.rules`](#rules) | `Prop`, `Rule`, the hedges |
+| [`fuzlog.systems`](#systems) | `Mamdani`, `Sugeno` |
+| [`fuzlog.features`](#features) | `labels`, `tables`, `plots` |
+| [`fuzlog.math`](#math) | `curves`, `norms`, `defuzz`, `grid` |
 
 ## Sets
 
-**`MF(fn, label="mf")`** is a fuzzy set. `fn` maps a float64 array of at least one
-dimension to degrees in [0, 1] of the same shape, without changing its argument.
+**`Set(curve, name="set")`**: `curve` maps a float64 array to degrees of the same
+shape.
 
 | Expression | Result |
 |---|---|
-| `mf(x)` | degrees of `x`: a float for a scalar, an array otherwise |
-| `a & b`, `a \| b`, `~a` | minimum, maximum, complement |
-| `a ** p` | degrees to the power `p` |
-| `very(a)`, `extremely(a)`, `somewhat(a)` | `a ** 2`, `a ** 3`, `a ** 0.5`; also for propositions |
+| `s(x)` | degrees of `x`: a float for a scalar, else an array |
+| `a & b`, `a \| b`, `~a`, `a ** p` | minimum, maximum, complement, power |
+| `s.curve`, `s.name` | as given |
 
-Shapes, each returning an `MF` ([definitions](shapes.md)):
-`triangle(a, b, c)`, `trapezoid(a, b, c, d)`, `rising(a, b)`, `falling(a, b)`,
-`rectangle(a, b)`, `singleton(a)`, `piecewise(points)`, `gauss(c, sigma)`,
-`gauss2(c1, sigma1, c2, sigma2)`, `bell(c, width, slope)`, `sigmoid(c, slope)`,
-`dsigmoid(c1, slope1, c2, slope2)`, `psigmoid(c1, slope1, c2, slope2)`,
-`s_shape(a, b)`, `z_shape(a, b)`, `pi_shape(a, b, c, d)`.
+Shapes ([definitions](shapes.md)): `triangle(a, b, c)`, `trapezoid(a, b, c, d)`,
+`rising(a, b)`, `falling(a, b)`, `rectangle(a, b)`, `singleton(a)`,
+`piecewise(points)`, `gauss(c, sigma)`, `gauss2(c1, sigma1, c2, sigma2)`,
+`bell(c, width, slope)`, `sigmoid(c, slope)`, `dsigmoid(c1, slope1, c2, slope2)`,
+`psigmoid(c1, slope1, c2, slope2)`, `s_shape(a, b)`, `z_shape(a, b)`,
+`pi_shape(a, b, c, d)`.
 
 ## Variables
 
-**`Variable(name, universe, terms=None, *, periodic=False, **more_terms)`** is a
-linguistic variable. `universe` is `(low, high)`; terms are sets given as a mapping,
-as keyword arguments, or both. On a `periodic` universe `high` is the same point as
-`low`, and values are wrapped into `[low, high)`.
+**`Variable(name, universe, terms=None, *, periodic=False, **more_terms)`**
 
 | Member | Meaning |
 |---|---|
-| `name`, `universe`, `terms`, `periodic` | as given; `terms` is a read-only mapping of names to sets |
 | `v.term`, `v["term"]` | the proposition "v is term" |
 | `v(x)` | degrees of `x` in every term: shape `(len(terms), *x.shape)` |
-| `v.fuzzify(x)` | the same by term name, as a dict |
-| `v.grid(points=101)` | evenly spaced values that cover the universe |
-| `v.peaks(points=2001)` | the middle of the core of every term |
-| `v.plot(ax=None)` | draws the terms and returns the Axes |
+| `v.grid(points=101)` | evenly spaced values over the universe |
+| `v.wrap(x)` | `x` brought into `[low, high)` if the variable is periodic |
+| `name`, `universe`, `terms`, `periodic` | as given; `terms` maps names to sets |
 
-**`partition(name, universe, cores=None, *, periodic=False, **more_cores)`** builds
-a variable whose terms sum to 1. A core is a value or a `(low, high)` range, listed
-in increasing order with gaps between neighbours; a list of names instead spreads
-the cores evenly. On a `periodic` universe one core may wrap around.
+**`partition(name, universe, cores=None, *, periodic=False, **more_cores)`**
+returns a `Variable` whose terms sum to 1. A core is a value or a `(low, high)`
+range, in increasing order with gaps between neighbours; a list of names spreads
+the cores evenly.
 
-## Propositions and rules
+## Rules
 
-**`Prop`** is a proposition; `variable.term` makes one.
+**`Prop`**: a proposition; `variable.term` makes one.
 
 | Expression | Result |
 |---|---|
 | `p & q`, `p \| q`, `~p`, `p ** n` | and, or, not, hedge |
+| `very(p)`, `extremely(p)`, `somewhat(p)` | `p ** 2`, `p ** 3`, `p ** 0.5`; also for sets |
 | `p >> then` | a `Rule` |
-| `p(**inputs)` | the degree to which `p` holds, with minimum for and, maximum for or |
-| `p.variables` | the variables `p` talks about |
-| `p.truth(degree, tnorm, snorm)` | evaluation with other norms, given `degree(variable, term)` |
+| `p(**inputs)` | the degree to which `p` holds: minimum for and, maximum for or |
+| `p.inputs` | the variables `p` talks about, by name |
+| `p.truth(inputs, tnorm, snorm)` | the same with other norms, given `rules.Inputs(values)` |
 
-**`Rule(when, then, weight=1.0)`** is a rule; `when >> then` makes one with
-weight 1. `then` is a proposition about the output variable for `Mamdani`, a number
-or a function of the inputs for `Sugeno`. `weight` in [0, 1] scales the firing
-strength.
+**`Rule(when, then, weight=1.0)`**: `when >> then` with a weight in [0, 1]. `then`
+is a proposition for `Mamdani`, a number or a function for `Sugeno`.
+`rule.fire(inputs, tnorm, snorm)` is its firing strength.
 
-## Inference
+## Systems
 
 **`Mamdani(*rules, tnorm=np.minimum, snorm=np.maximum, implication=np.minimum,
 aggregation=np.maximum, defuzz=centroid, points=101)`**
@@ -80,76 +71,47 @@ aggregation=np.maximum, defuzz=centroid, points=101)`**
 | Member | Meaning |
 |---|---|
 | `system(**inputs)` | the crisp output: a float for scalars, else an array of the broadcast shape; NaN where no rule fires |
-| `system.aggregate(**inputs)` | the output set before defuzzification, with a last axis over `system.x` |
-| `system.plot(ax=None, **inputs)` | draws the output set for scalar inputs and its crisp value |
-| `system.surface(x, y, ax=None, *, points=64, **fixed)` | draws the output over the inputs named `x` and `y` |
+| `system.aggregate(**inputs)` | the output set before defuzzification: a last axis over `system.x` |
 | `rules`, `inputs`, `output`, `x` | the rules, the input variables by name, the output variable, its grid |
 
-`implication` must not decrease as the firing strength grows, as every t-norm does.
-
 **`Sugeno(*rules, tnorm=np.minimum, snorm=np.maximum)`** has `system(**inputs)`,
-`system.surface(...)`, `rules` and `inputs` with the same meaning. A function in a
-conclusion is called as `then(**inputs)`.
+`rules` and `inputs`. A function in a conclusion receives the inputs it names, or
+all of them if it takes `**kwargs`.
 
-**`Labels(*variables, sep="_")`** describes inputs in words. `labels(**inputs)` is
-the strongest term of every variable, joined by `sep`: a string for scalars, else
-an array of strings of the broadcast shape. Of equal terms the first wins; the
-label is empty where an input is NaN or belongs to no term. `inputs` holds the
-variables by name.
+Norms: `probor`, `bounded_sum`, `bounded_diff`, and NumPy's `minimum`, `maximum`,
+`multiply`. Defuzzifiers: `centroid`, `bisector`, `mom`, `som`, `lom`.
 
-### Norms
+## Features
 
-A norm is a function of two broadcastable arrays of degrees.
+**`Labels(*variables, sep="_")`**: `labels(**inputs)` is the strongest term of
+every variable, joined by `sep`: a string for scalars, else an array of strings.
 
-| | t-norm (and) | s-norm (or) |
-|---|---|---|
-| Zadeh | `np.minimum` | `np.maximum` |
-| probabilistic | `np.multiply` | `probor`: `a + b - ab` |
-| Łukasiewicz | `bounded_diff`: `max(a + b - 1, 0)` | `bounded_sum`: `min(a + b, 1)` |
+**`tabulate(system, axes=None, *, points=101, method=None, dtype=None)`** returns
+a `Table` of anything called with keyword arrays.
 
-### Defuzzifiers
-
-`centroid(x, mu)`, `bisector(x, mu)`, `mom(x, mu)`, `som(x, mu)`, `lom(x, mu)` take
-a grid `x` and degrees `mu` whose last axis runs over the grid, and return one value
-per set: NaN for an empty one. [Meanings](guide.md#defuzzification).
-
-## Tables
-
-**`compile(system, axes=None, *, transform=None, points=101, method=None,
-dtype=None)`** evaluates `system` on a grid and returns a
-`Table`. The system is anything called with keyword arrays: a `Mamdani`, a
-`Sugeno`, a `Labels`, a proposition or a function of your own. One that answers
-with strings gives a table of labels.
-
-| Argument | Meaning |
+| Member of `Table` | Meaning |
 |---|---|
-| `axes` | the inputs of the table by name: a number of points over the universe of that variable, `(low, high)` or `(low, high, points)`; by default every input of the system |
-| `transform` | function of the table's inputs, as keyword arrays, that returns the system's inputs by name; needs `axes` |
-| `points` | points of every axis that gives none |
-| `method` | `"linear"`, the default, interpolates between nodes; `"nearest"` takes the closest one, as a table of labels always does |
-| `dtype` | type of the stored numbers: by default `np.float64`, and for labels the smallest whole type that counts them |
-
-**`Table`**
-
-| Member | Meaning |
-|---|---|
-| `table(**inputs)` | the looked-up output, with the shapes of `system(**inputs)`; inputs outside an axis take its nearest end, or wrap around if the variable is periodic; NaN gives NaN. A table of labels gives strings, empty for NaN |
-| `table.codes(**inputs)` | for a table of labels, the position of the label in `labels`; -1 where an input is NaN |
+| `table(**inputs)` | the looked-up output. Inputs outside an axis take its nearest end, or wrap around if it is periodic; NaN gives NaN, or an empty label |
+| `table.codes(**inputs)` | for a table of labels, the position in `labels`; -1 for NaN |
 | `table.save(path, *, compress=False)` | writes a NumPy `.npz` archive |
-| `axes`, `values`, `method`, `source` | the axes, the array with one dimension per axis, the method, the text of what was compiled |
-| `labels` | the distinct strings of a table of labels, else `None` |
+| `Table.load(path)` | reads one |
+| `axes`, `values`, `method`, `source`, `labels` | the axes, one value per node, `"linear"` or `"nearest"`, what was tabulated, the strings of a table of labels |
 
-**`load(path)`** reads a saved table. The file holds the numbers and the axes, not
-the rules: the system cannot be rebuilt from it.
+**`plot(variable, ax=None)`** draws the terms; **`plot(system, ax=None,
+**inputs)`** the output set a `Mamdani` infers and its crisp value;
+**`surface(system, x, y, ax=None, *, points=64, **fixed)`** the output over two
+inputs. Each returns the Axes. Matplotlib is imported by the first plot.
 
-## Plotting
+## Math
 
-`fuzlog.plotting` holds what the `plot` and `surface` methods call:
-`plot_variable(variable, ax=None)`, `plot_inference(system, ax=None, **inputs)` and
-`plot_surface(system, x, y, ax=None, *, points=64, **fixed)`. Each returns the Axes.
+Plain NumPy functions; nothing here knows about the classes above.
 
-## Types
+| Module | Functions |
+|---|---|
+| `math.curves` | the sixteen shapes: each returns a function of a float64 array |
+| `math.norms` | `probor(a, b)`, `bounded_sum(a, b)`, `bounded_diff(a, b)` |
+| `math.defuzz` | `centroid(x, mu)`, `bisector`, `mom`, `som`, `lom`: one value per set along the last axis of `mu`, NaN for an empty set |
+| `math.grid` | `locate(x, low, high, points, periodic)`, `nearest(values, places, periodic)`, `linear(values, places, periodic, holes=False)` |
 
-`Array` is a float64 NumPy array, `Curve` the function inside an `MF`, `Norm` a
-t-norm or s-norm and `Defuzzifier` a function `(x, mu)`; all four are aliases for
-annotations.
+`fuzlog.types` has the aliases the library is annotated with: `Array`, `Curve`,
+`Norm`, `Defuzzifier`.
