@@ -1,6 +1,6 @@
 [project]
 name = "fuzlog"
-version = "0.3.0"
+version = "0.3.1"
 description = "Simple and enjoyable Python library for fuzzy logic."
 readme = "README.md"
 license = "MIT"
