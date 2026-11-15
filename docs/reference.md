@@ -1,9 +1,17 @@
 # Reference
 
 Everything is reached from the package: `import fuzlog as fz`. The code lives in
-four modules: `fuzlog.types` (the data model), `fuzlog.core` (everything that
-computes), `fuzlog.table` (compiled lookup tables) and `fuzlog.plotting` (matplotlib
-views, imported on first use).
+one module per section of this page:
+
+| Module | Holds |
+|---|---|
+| `fuzlog.sets` | `MF` and the shapes |
+| `fuzlog.variables` | `Variable` and `partition` |
+| `fuzlog.rules` | `Prop`, `Rule` and the hedges |
+| `fuzlog.inference` | norms, defuzzifiers, `Mamdani`, `Sugeno` and `Labels` |
+| `fuzlog.table` | `compile`, `Table` and `load` |
+| `fuzlog.plotting` | matplotlib views, imported on first use |
+| `fuzlog.types` | aliases for annotations |
 
 ## Sets
 

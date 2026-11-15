@@ -23,7 +23,9 @@ from typing import Any, Literal, NamedTuple
 import numpy as np
 from numpy.typing import ArrayLike, DTypeLike, NDArray
 
-from fuzlog.types import Array, Prop, Variable
+from fuzlog.rules import Prop
+from fuzlog.types import Array
+from fuzlog.variables import Variable
 
 type Span = int | tuple[float, float] | tuple[float, float, int]
 type Method = Literal["linear", "nearest"]

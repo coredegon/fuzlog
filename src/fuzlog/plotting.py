@@ -18,8 +18,8 @@ import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.colors import LinearSegmentedColormap, to_rgba
 
-from fuzlog.core import Mamdani, Sugeno
-from fuzlog.types import Variable
+from fuzlog.inference import Mamdani, Sugeno
+from fuzlog.variables import Variable
 
 # Eight hues that stay apart under colour blindness when neighbours take
 # neighbouring slots: one row for light surfaces, one for dark. Terms take them in

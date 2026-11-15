@@ -12,41 +12,42 @@
 - tables: ``compile(system)`` for lookup speed, ``table.save(path)`` and ``load``.
 """
 
-from fuzlog.core import (
+from fuzlog.inference import (
     Labels,
     Mamdani,
     Sugeno,
-    bell,
     bisector,
     bounded_diff,
     bounded_sum,
     centroid,
+    lom,
+    mom,
+    probor,
+    som,
+)
+from fuzlog.rules import Prop, Rule, extremely, somewhat, very
+from fuzlog.sets import (
+    MF,
+    bell,
     dsigmoid,
-    extremely,
     falling,
     gauss,
     gauss2,
-    lom,
-    mom,
-    partition,
     pi_shape,
     piecewise,
-    probor,
     psigmoid,
     rectangle,
     rising,
     s_shape,
     sigmoid,
     singleton,
-    som,
-    somewhat,
     trapezoid,
     triangle,
-    very,
     z_shape,
 )
 from fuzlog.table import Table, compile, load
-from fuzlog.types import MF, Array, Defuzzifier, Kernel, Norm, Prop, Rule, Variable
+from fuzlog.types import Array, Defuzzifier, Kernel, Norm
+from fuzlog.variables import Variable, partition
 
 __all__ = [
     "MF",
