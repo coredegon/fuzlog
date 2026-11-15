@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Mapping
-from functools import lru_cache, reduce
+from functools import reduce
 from numbers import Real
 from typing import TYPE_CHECKING, overload
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
+from fuzlog.math.defuzz import centroid
 from fuzlog.rules import Prop, Rule, fuzzifier
 from fuzlog.types import Array, Defuzzifier, Norm
 from fuzlog.variables import Variable
@@ -23,90 +24,6 @@ if TYPE_CHECKING:
     from matplotlib.axes import Axes
 
 _CELLS = 1 << 15  # size of the blocks in which Mamdani output sets are built
-
-
-# --- norms: numpy's minimum, multiply and maximum are norms too -----------------------
-
-
-def probor(a: Array, b: Array) -> Array:
-    """Probabilistic sum ``a + b - a * b``: the s-norm that goes with the product."""
-    return a + b - a * b
-
-
-def bounded_sum(a: Array, b: Array) -> Array:
-    """Bounded sum ``min(a + b, 1)``: the Lukasiewicz s-norm."""
-    return np.minimum(a + b, 1.0)
-
-
-def bounded_diff(a: Array, b: Array) -> Array:
-    """Bounded difference ``max(a + b - 1, 0)``: the Lukasiewicz t-norm."""
-    return np.maximum(a + b - 1.0, 0.0)
-
-
-# --- defuzzification: (x, mu) -> crisp, along the last axis of mu ---------------------
-
-
-@lru_cache(maxsize=32)
-def _outline(grid: bytes) -> tuple[Array, Array]:
-    """Weights that integrate a set, drawn as straight lines between its samples.
-
-    ``mu @ area`` is the area under the outline and ``mu @ moment`` its first moment.
-    """
-    x = np.frombuffer(grid)
-    half = np.diff(x) / 2.0
-    area, moment = np.zeros_like(x), np.zeros_like(x)
-    area[:-1] += half
-    area[1:] += half
-    moment += area * x
-    tilt = half * half * (2.0 / 3.0)  # a sloping segment leans towards its higher end
-    moment[:-1] += tilt
-    moment[1:] -= tilt
-    return area, moment
-
-
-def centroid(x: Array, mu: Array) -> Array:
-    """Centre of gravity of the area under ``mu``; NaN for an empty set.
-
-    The set is taken as straight lines between its samples, so the result is exact
-    when the grid holds every corner of the set.
-    """
-    area, moment = _outline(np.ascontiguousarray(x, dtype=np.float64).tobytes())
-    with np.errstate(invalid="ignore"):
-        return (mu @ moment) / (mu @ area)
-
-
-def bisector(x: Array, mu: Array) -> Array:
-    """The value that splits the area under ``mu`` in two halves; NaN if empty."""
-    area = np.cumsum(mu, axis=-1)
-    total = area[..., -1:]
-    first = (area < total / 2.0).sum(axis=-1)  # where the running area reaches half
-    return np.where(total[..., 0] > 0.0, x[np.minimum(first, x.size - 1)], np.nan)
-
-
-def _top(mu: Array) -> np.ndarray:
-    """Mark where ``mu`` is highest; nowhere for an empty set."""
-    peak = mu.max(axis=-1, keepdims=True)
-    return (mu == peak) & (peak > 0.0)
-
-
-def mom(x: Array, mu: Array) -> Array:
-    """Mean of the values at which ``mu`` is highest; NaN for an empty set."""
-    top = _top(mu)
-    with np.errstate(invalid="ignore"):
-        return (top @ x) / top.sum(axis=-1)
-
-
-def som(x: Array, mu: Array) -> Array:
-    """Smallest value at which ``mu`` is highest; NaN for an empty set."""
-    top = _top(mu)
-    return np.where(top.any(axis=-1), x[top.argmax(axis=-1)], np.nan)
-
-
-def lom(x: Array, mu: Array) -> Array:
-    """Largest value at which ``mu`` is highest; NaN for an empty set."""
-    top = _top(mu)
-    last = x.size - 1 - top[..., ::-1].argmax(axis=-1)
-    return np.where(top.any(axis=-1), x[last], np.nan)
 
 
 # --- systems --------------------------------------------------------------------------

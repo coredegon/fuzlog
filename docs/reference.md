@@ -5,10 +5,11 @@ one module per section of this page:
 
 | Module | Holds |
 |---|---|
+| `fuzlog.math` | plain NumPy functions: `curves`, `norms`, `defuzz`, `grid` |
 | `fuzlog.sets` | `MF` and the shapes |
 | `fuzlog.variables` | `Variable` and `partition` |
 | `fuzlog.rules` | `Prop`, `Rule` and the hedges |
-| `fuzlog.inference` | norms, defuzzifiers, `Mamdani`, `Sugeno` and `Labels` |
+| `fuzlog.inference` | `Mamdani`, `Sugeno` and `Labels` |
 | `fuzlog.table` | `compile`, `Table` and `load` |
 | `fuzlog.plotting` | matplotlib views, imported on first use |
 | `fuzlog.types` | aliases for annotations |
@@ -149,6 +150,6 @@ the rules: the system cannot be rebuilt from it.
 
 ## Types
 
-`Array` is a float64 NumPy array, `Kernel` the function inside an `MF`, `Norm` a
+`Array` is a float64 NumPy array, `Curve` the function inside an `MF`, `Norm` a
 t-norm or s-norm and `Defuzzifier` a function `(x, mu)`; all four are aliases for
 annotations.

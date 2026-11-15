@@ -11,7 +11,6 @@ labels, which keeps the distinct strings once and a small number per node.
 
 from __future__ import annotations
 
-import itertools
 import json
 import math
 import os
@@ -23,6 +22,7 @@ from typing import Any, Literal, NamedTuple
 import numpy as np
 from numpy.typing import ArrayLike, DTypeLike, NDArray
 
+from fuzlog.math import grid
 from fuzlog.rules import Prop
 from fuzlog.types import Array
 from fuzlog.variables import Variable
@@ -50,26 +50,6 @@ class Axis(NamedTuple):
     def grid(self) -> Array:
         """Return the values of the nodes."""
         return np.linspace(self.low, self.high, self.points, endpoint=not self.periodic)
-
-    def locate(self, x: Array) -> tuple[Array, NDArray[np.bool_] | None]:
-        """Return the fractional node index of ``x``, and where ``x`` is NaN.
-
-        Values outside a plain axis are moved to its nearest end; on a periodic
-        axis they are wrapped around.
-        """
-        if self.periodic:
-            period = self.high - self.low
-            with np.errstate(invalid="ignore"):  # an infinite value becomes NaN
-                at = np.mod(x - self.low, period)
-            at *= self.points / period
-        else:
-            at = (x - self.low) * ((self.points - 1) / (self.high - self.low))
-            np.clip(at, 0.0, self.points - 1.0, out=at)
-        missing = np.isnan(at)
-        if not missing.any():
-            return at, None
-        at[missing] = 0.0
-        return at, missing
 
 
 def _checked(axis: Axis) -> Axis:
@@ -148,7 +128,11 @@ class Table:
             return words if isinstance(words, np.ndarray) else str(words)
         places, missing, shape = self._locate(inputs)
         nearest = self.method == "nearest"
-        out = self._nearest(places) if nearest else self._linear(places)
+        out = (
+            self._nearest(places)
+            if nearest
+            else grid.linear(self.values, places, self._wraps(), self._holes)
+        )
         out = out.astype(np.float64, copy=False)
         for lost in missing:
             out[np.broadcast_to(lost, out.shape)] = np.nan
@@ -168,6 +152,12 @@ class Table:
             out[np.broadcast_to(lost, out.shape)] = -1
         return out.reshape(shape) if shape else out.item()
 
+    def _wraps(self) -> list[bool]:
+        return [axis.periodic for axis in self.axes]
+
+    def _nearest(self, places: list[Array]) -> np.ndarray:
+        return np.atleast_1d(grid.nearest(self.values, places, self._wraps()))
+
     def _locate(
         self, inputs: Mapping[str, ArrayLike]
     ) -> tuple[list[Array], list[NDArray[np.bool_]], tuple[int, ...]]:
@@ -179,55 +169,15 @@ class Table:
         shape = np.broadcast_shapes(*(x.shape for x in given))
         places, missing = [], []
         for axis, x in zip(self.axes, given, strict=True):
-            at, lost = axis.locate(np.atleast_1d(x))
-            places.append(at)
-            if lost is not None:
+            at = grid.locate(
+                np.atleast_1d(x), axis.low, axis.high, axis.points, axis.periodic
+            )
+            lost = np.isnan(at)
+            if lost.any():
+                at[lost] = 0.0
                 missing.append(lost)
+            places.append(at)
         return places, missing, shape
-
-    def _strides(self) -> list[int]:
-        """Distance between neighbours along every axis in the flattened values."""
-        sizes = self.values.shape
-        return [math.prod(sizes[i + 1 :]) for i in range(len(sizes))]
-
-    def _nearest(self, places: list[Array]) -> np.ndarray:
-        """The value of the node closest to every place."""
-        cell: NDArray[np.intp] | int = 0
-        for axis, at, stride in zip(self.axes, places, self._strides(), strict=True):
-            node = np.rint(at).astype(np.intp)
-            if axis.periodic:
-                node %= axis.points
-            node *= stride
-            cell = cell + node
-        return np.atleast_1d(self.values.reshape(-1)[cell])
-
-    def _linear(self, places: list[Array]) -> Array:
-        """The values of the nodes around every place, weighted by closeness."""
-        sides = []  # per axis: the node below and the node above, with their weights
-        for axis, at, stride in zip(self.axes, places, self._strides(), strict=True):
-            below = at.astype(np.intp)
-            if axis.periodic:
-                share = at - below
-                below %= axis.points
-                above = (below + 1) % axis.points
-            else:
-                np.minimum(below, axis.points - 2, out=below)
-                share = at - below
-                above = below + 1
-            sides.append(((below * stride, 1.0 - share), (above * stride, share)))
-        cells = self.values.reshape(-1)
-        out: Array | None = None
-        for corner in itertools.product(*sides):
-            cell, weight = corner[0]
-            for other, share in corner[1:]:
-                cell = cell + other
-                weight = weight * share
-            term = cells[cell] * weight
-            if self._holes:  # a hole must not leak into where it has no weight
-                term[np.broadcast_to(weight == 0.0, term.shape)] = 0.0
-            out = term if out is None else out + term
-        assert out is not None
-        return out
 
     def save(self, path: str | os.PathLike[str], *, compress: bool = False) -> None:
         """Write the table to ``path`` as a NumPy ``.npz`` archive.
@@ -377,8 +327,8 @@ def compile(
         stop = min(start + _CHUNK, size)
         nodes = np.unravel_index(np.arange(start, stop), shape)
         inputs: Mapping[str, ArrayLike] = {
-            axis.name: grid[node]
-            for axis, grid, node in zip(table_axes, grids, nodes, strict=True)
+            axis.name: values[node]
+            for axis, values, node in zip(table_axes, grids, nodes, strict=True)
         }
         if transform is not None:
             inputs = transform(**inputs)
