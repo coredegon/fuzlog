@@ -83,7 +83,7 @@ def test_sets_combine_pointwise():
         repr(~(low & high) | high**2)
         == "(~(falling(0, 10) & rising(0, 10)) | rising(0, 10)**2)"
     )
-    custom = fz.MF(lambda v: np.exp(-np.abs(v)), "spike")
+    custom = fz.Set(lambda v: np.exp(-np.abs(v)), "spike")
     assert (custom(0.0), repr(custom)) == (1.0, "spike")
 
 

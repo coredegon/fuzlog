@@ -6,35 +6,31 @@ import itertools
 import math
 from collections.abc import Iterable, Mapping
 from types import MappingProxyType
-from typing import TYPE_CHECKING, overload
 
 import numpy as np
 from numpy.typing import ArrayLike
 
+from fuzlog.math import curves
 from fuzlog.rules import Prop
-from fuzlog.sets import MF, falling, piecewise, rising, trapezoid, triangle
+from fuzlog.sets import Set, falling, rising, trapezoid, triangle
 from fuzlog.types import Array
 
-if TYPE_CHECKING:
-    from matplotlib.axes import Axes
-
 type Core = float | tuple[float, float]
+type Span = tuple[float, float]
 
 
 class Variable:
-    """A linguistic variable: a quantity whose values are described by fuzzy terms.
+    """A linguistic variable: a quantity and the terms that describe it.
 
-    ``universe`` is the range ``(low, high)`` of the quantity. Terms are given as a
-    mapping, as keyword arguments, or both::
+    ```python
+    temp = fz.Variable("temp", (0, 40), cold=fz.falling(10, 20), hot=fz.rising(20, 30))
+    temp.cold          # the proposition "temp is cold", for rules
+    temp(12.5)         # array([0.75, 0.  ]): the degree of every term
+    temp.terms         # {"cold": falling(10, 20), "hot": rising(20, 30)}
+    ```
 
-        temp = Variable("temp", (0, 40), cold=falling(10, 20), hot=rising(20, 30))
-
-    ``temp.cold`` and ``temp["cold"]`` are the proposition "temp is cold", the
-    building block of rules; ``temp.terms["cold"]`` is the fuzzy set itself.
-
-    A ``periodic`` universe is a circle on which ``high`` is the same point as
-    ``low``, like an angle: values are wrapped into ``[low, high)`` before the terms
-    see them.
+    Terms also come as a mapping, which takes any name: `temp["very hot"]`.
+    A `periodic` universe is a circle, like an angle: `high` is `low` again.
     """
 
     __slots__ = ("name", "periodic", "terms", "universe")
@@ -43,21 +39,19 @@ class Variable:
         self,
         name: str,
         universe: tuple[float, float],
-        terms: Mapping[str, MF] | None = None,
+        terms: Mapping[str, Set] | None = None,
         /,
         *,
         periodic: bool = False,
-        **more: MF,
+        **more: Set,
     ) -> None:
         low, high = (float(bound) for bound in universe)
         if not (math.isfinite(low) and math.isfinite(high) and low < high):
             raise ValueError(f"a universe needs finite low < high, got {universe}")
         sets = {**(terms or {}), **more}
-        strangers = [term for term, mf in sets.items() if not isinstance(mf, MF)]
+        strangers = [term for term, value in sets.items() if not isinstance(value, Set)]
         if not sets or strangers:
-            raise TypeError(
-                f"{name!r} needs terms that are MF, got {strangers or sets}"
-            )
+            raise TypeError(f"{name!r} needs terms that are sets, got {strangers}")
         self.name = name
         self.universe = (low, high)
         self.terms = MappingProxyType(sets)
@@ -79,55 +73,20 @@ class Variable:
             raise AttributeError(error.args[0]) from None
 
     def __call__(self, x: ArrayLike) -> Array:
-        """Return the degree of ``x`` in every term: shape ``(len(terms), *x.shape)``.
-
-        Unpacks into one array per term: ``cold, warm, hot = temp(x)``.
-        """
+        """Return the degree of `x` in every term: shape `(len(terms), *x.shape)`."""
         values = np.asarray(x, dtype=np.float64)
-        wrapped = self._wrap(np.atleast_1d(values))
+        wrapped = self.wrap(np.atleast_1d(values))
         degrees = np.empty((len(self.terms), *wrapped.shape))
-        for i, mf in enumerate(self.terms.values()):
-            degrees[i] = mf.fn(wrapped)
+        for i, term in enumerate(self.terms.values()):
+            degrees[i] = term.curve(wrapped)
         return degrees.reshape(len(self.terms), *values.shape)
-
-    @overload
-    def fuzzify(self, x: float) -> dict[str, float]: ...
-    @overload
-    def fuzzify(self, x: ArrayLike) -> dict[str, Array]: ...
-    def fuzzify(self, x: ArrayLike) -> dict[str, float] | dict[str, Array]:
-        """Return the degree of ``x`` in every term, by term name."""
-        degrees = self(x)
-        values = degrees if degrees.ndim > 1 else degrees.tolist()
-        return dict(zip(self.terms, values, strict=True))
 
     def grid(self, points: int = 101) -> Array:
         """Return evenly spaced values that cover the universe."""
         return np.linspace(*self.universe, points, endpoint=not self.periodic)
 
-    def peaks(self, points: int = 2001) -> Array:
-        """Return the most typical value of every term: the middle of its core.
-
-        The core, where membership is highest, is located on a grid of ``points``
-        values; on a periodic universe its middle is found going around the circle.
-        """
-        x = self.grid(points)
-        degrees = self(x)
-        core = (degrees >= degrees.max(axis=1, keepdims=True) - 1e-9).astype(np.float64)
-        if not self.periodic:
-            return (core @ x) / core.sum(axis=1)
-        low, high = self.universe
-        angle = (x - low) * (math.tau / (high - low))
-        middle = np.arctan2(core @ np.sin(angle), core @ np.cos(angle)) % math.tau
-        return low + middle * ((high - low) / math.tau)
-
-    def plot(self, ax: Axes | None = None) -> Axes:
-        """Draw the membership function of every term."""
-        from fuzlog.plotting import plot_variable
-
-        return plot_variable(self, ax)
-
-    def _wrap(self, x: Array) -> Array:
-        """Bring the values of a periodic variable into ``[low, high)``."""
+    def wrap(self, x: Array) -> Array:
+        """Bring the values of a periodic variable into `[low, high)`."""
         low, high = self.universe
         if not self.periodic or x.size == 0 or (x.min() >= low and x.max() < high):
             return x
@@ -136,7 +95,7 @@ class Variable:
 
     def __repr__(self) -> str:
         low, high = self.universe
-        terms = ", ".join(f"{term!r}: {mf}" for term, mf in self.terms.items())
+        terms = ", ".join(f"{name!r}: {term}" for name, term in self.terms.items())
         periodic = ", periodic=True" if self.periodic else ""
         return f"Variable({self.name!r}, ({low:g}, {high:g}), {{{terms}}}{periodic})"
 
@@ -150,42 +109,46 @@ def partition(
     periodic: bool = False,
     **more: Core,
 ) -> Variable:
-    """Build a variable whose terms always sum to 1: a strong fuzzy partition.
+    """Build a variable whose terms always sum to 1.
 
-    A term is given by its core, the value or ``(low, high)`` range that belongs to
-    it completely; between neighbouring cores membership passes linearly from one
-    term to the next. A list of names instead spreads the cores evenly::
+    ```python
+    fz.partition("level", (0, 1), ["low", "medium", "high"])   # evenly spread
+    fz.partition("temp", (0, 40), cold=10, warm=(18, 22), hot=30)
+    fz.partition("hue", (0, 360), red=(350, 10), green=120, blue=240, periodic=True)
+    ```
 
-        partition("temp", (0, 40), cold=10, warm=20, hot=30)
-        partition("level", (0, 1), ["low", "medium", "high"])
-
-    Cores are listed in increasing order, and the outer terms keep full membership
-    up to the ends of the universe. On a ``periodic`` universe the last term blends
-    back into the first and one core may wrap around: ``(350, 10)`` on ``(0, 360)``.
+    A core is the value or `(low, high)` range that belongs to a term completely;
+    between neighbouring cores membership passes linearly from one term to the
+    next. Cores go in increasing order; on a `periodic` universe the last term
+    blends back into the first and one core may wrap around.
     """
     low, high = (float(bound) for bound in universe)
     if cores is None or isinstance(cores, Mapping):
-        named = {**(cores or {}), **more}
-        given = named.values()
-        spans = [tuple(c) if isinstance(c, tuple | list) else (c, c) for c in given]
+        named: dict[str, Core] = {**(cores or {}), **more}
     elif more:
         raise TypeError("give either term names or cores, not both")
     else:
         names = list(cores)
-        named = dict.fromkeys(names)
-        if len(named) < len(names):
+        if len(set(names)) < len(names):
             raise ValueError(f"the terms of a partition must differ, got {names}")
-        even = np.linspace(low, high, len(named), endpoint=not periodic).tolist()
-        spans = [(c, c) for c in even]
+        even = np.linspace(low, high, len(names), endpoint=not periodic).tolist()
+        named = dict(zip(names, even, strict=True))
     if len(named) < 2:
         raise ValueError(f"a partition needs at least two terms, got {list(named)}")
-    spans = [(float(lower), float(upper)) for lower, upper in spans]
+    ranges = [c if isinstance(c, tuple | list) else (c, c) for c in named.values()]
+    spans = [(float(lower), float(upper)) for lower, upper in ranges]
     sets = _ring(spans, low, high) if periodic else _line(spans, low, high)
-    terms = dict(zip(named, sets, strict=True))
-    return Variable(name, (low, high), terms, periodic=periodic)
+    return Variable(
+        name, (low, high), dict(zip(named, sets, strict=True)), periodic=periodic
+    )
 
 
-def _line(spans: list[tuple[float, float]], low: float, high: float) -> list[MF]:
+def _bump(a: float, b: float, c: float, d: float) -> Set:
+    """A term that rises from `a` to its core `[b, c]` and falls to `d`."""
+    return triangle(a, b, d) if b == c else trapezoid(a, b, c, d)
+
+
+def _line(spans: list[Span], low: float, high: float) -> list[Set]:
     """Blend consecutive cores along a line; the outer terms become shoulders."""
     flat = [low, *itertools.chain.from_iterable(spans), high]
     apart = all(left[1] < right[0] for left, right in itertools.pairwise(spans))
@@ -194,45 +157,39 @@ def _line(spans: list[tuple[float, float]], low: float, high: float) -> list[MF]
             f"cores must increase inside the universe ({low:g}, {high:g}) "
             f"and leave gaps between neighbours, got {spans}"
         )
-    sets = [falling(spans[0][1], spans[1][0])]
-    for i in range(1, len(spans) - 1):
-        before, (lower, upper), after = spans[i - 1][1], spans[i], spans[i + 1][0]
-        if lower == upper:
-            sets.append(triangle(before, lower, after))
-        else:
-            sets.append(trapezoid(before, lower, upper, after))
-    return [*sets, rising(spans[-2][1], spans[-1][0])]
+    inner = [
+        _bump(before[1], *core, after[0])
+        for before, core, after in zip(spans, spans[1:], spans[2:], strict=False)
+    ]
+    return [
+        falling(spans[0][1], spans[1][0]),
+        *inner,
+        rising(spans[-2][1], spans[-1][0]),
+    ]
 
 
-def _ring(spans: list[tuple[float, float]], low: float, high: float) -> list[MF]:
+def _ring(spans: list[Span], low: float, high: float) -> list[Set]:
     """Blend consecutive cores around a circle; the last blends into the first."""
     period = high - low
-    corners = []
+    bumps = []
     for i, (lower, upper) in enumerate(spans):
         before, after = spans[i - 1][1], spans[(i + 1) % len(spans)][0]
-        a = low + (before - low) % period
+        a = low + (before - low) % period  # going around: each corner follows the last
         b = a + (lower - before) % period
         c = b + (upper - lower) % period
-        corners.append((a, b, c, c + (after - upper) % period))
-    covered = sum(d - b for _, b, _, d in corners)
-    if not math.isclose(covered, period) or any(c == d for *_, c, d in corners):
+        bumps.append((a, b, c, c + (after - upper) % period))
+    covered = sum(d - b for _, b, _, d in bumps)
+    if not math.isclose(covered, period) or any(c == d for *_, c, d in bumps):
         raise ValueError(
             f"cores must go once around the circle of {period:g} in increasing "
             f"order and leave gaps between neighbours, got {spans}"
         )
     sets = []
-    for a, b, c, d in corners:
-        # The bump may stick out past ``high``: fold that part back onto the start.
-        xs = np.array([a, b, c, d])
-        x = np.concatenate([xs - period, xs])
-        y = np.tile([0.0, 1.0, 1.0, 0.0], 2)
-        inside = (x > low) & (x < high)
-        seam = float(np.interp(low, x, y))
-        bump = zip(x[inside].tolist(), y[inside].tolist(), strict=True)
-        outline = piecewise([(low, seam), *bump, (high, seam)])
-        shape, bends = (
-            ("triangle", (a, b, d)) if b == c else ("trapezoid", (a, b, c, d))
-        )
-        label = f"{shape}({', '.join(f'{bend:g}' for bend in bends)})"
-        sets.append(MF(outline.fn, label))
+    for bump in bumps:
+        term = _bump(*bump)
+        if bump[3] > high:  # it sticks out past `high`: a copy comes in at `low`
+            corners = [corner - period for corner in bump] + list(bump)
+            outline = zip(corners, [0, 1, 1, 0] * 2, strict=True)
+            term = Set(curves.piecewise(outline), term.name)
+        sets.append(term)
     return sets

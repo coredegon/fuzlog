@@ -1,24 +1,31 @@
 """Fuzzy logic for Python: small, fast, typed.
 
-``import fuzlog as fz`` gives the whole library:
+```python
+import fuzlog as fz
 
-- sets: ``triangle``, ``trapezoid``, ``gauss`` and 13 more shapes, combined with
-  ``& | ~ **``;
-- variables: ``Variable`` and ``partition``;
-- rules: ``temp.hot & humidity.high >> fan.fast``;
-- inference: ``Mamdani`` and ``Sugeno``;
-- words: ``Labels`` names the strongest terms of the inputs;
-- plots: ``variable.plot()``, ``system.plot(...)``, ``system.surface(...)``;
-- tables: ``compile(system)`` for lookup speed, ``table.save(path)`` and ``load``.
+temp = fz.partition("temp", (0, 40), cold=10, warm=20, hot=30)
+fan = fz.partition("fan", (0, 100), ["slow", "medium", "fast"])
+cooler = fz.Mamdani(temp.cold >> fan.slow, temp.hot >> fan.fast)
+cooler(temp=27)
+```
+
+- sets: `triangle`, `gauss` and 14 more shapes, combined with `& | ~ **`;
+- variables: `Variable` and `partition`;
+- rules: `temp.hot & humid.wet >> fan.fast`;
+- systems: `Mamdani` and `Sugeno`;
+- features: `Labels`, `tabulate` and `Table`, `plot` and `surface`;
+- `fuzlog.math`: all of the mathematics as plain NumPy functions.
 """
 
-from fuzlog import math
-from fuzlog.inference import Labels, Mamdani, Sugeno
+from fuzlog import features, math
+from fuzlog.features.labels import Labels
+from fuzlog.features.plots import plot, surface
+from fuzlog.features.tables import Table, tabulate
 from fuzlog.math.defuzz import bisector, centroid, lom, mom, som
 from fuzlog.math.norms import bounded_diff, bounded_sum, probor
 from fuzlog.rules import Prop, Rule, extremely, somewhat, very
 from fuzlog.sets import (
-    MF,
+    Set,
     bell,
     dsigmoid,
     falling,
@@ -36,20 +43,15 @@ from fuzlog.sets import (
     triangle,
     z_shape,
 )
-from fuzlog.table import Table, compile, load
-from fuzlog.types import Array, Curve, Defuzzifier, Norm
+from fuzlog.systems import Mamdani, Sugeno
 from fuzlog.variables import Variable, partition
 
 __all__ = [
-    "MF",
-    "Array",
-    "Curve",
-    "Defuzzifier",
     "Labels",
     "Mamdani",
-    "Norm",
     "Prop",
     "Rule",
+    "Set",
     "Sugeno",
     "Table",
     "Variable",
@@ -58,19 +60,19 @@ __all__ = [
     "bounded_diff",
     "bounded_sum",
     "centroid",
-    "compile",
     "dsigmoid",
     "extremely",
     "falling",
+    "features",
     "gauss",
     "gauss2",
-    "load",
     "lom",
     "math",
     "mom",
     "partition",
     "pi_shape",
     "piecewise",
+    "plot",
     "probor",
     "psigmoid",
     "rectangle",
@@ -80,6 +82,8 @@ __all__ = [
     "singleton",
     "som",
     "somewhat",
+    "surface",
+    "tabulate",
     "trapezoid",
     "triangle",
     "very",

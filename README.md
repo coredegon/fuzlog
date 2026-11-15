@@ -31,7 +31,7 @@ print(*tipper.rules, sep="\n")
 # if service is excellent or food is tasty then tip is generous
 ```
 
-`tipper.plot(service=3, food=8)` and `tipper.surface("service", "food")` draw:
+`fz.plot(tipper, service=3, food=8)` and `fz.surface(tipper, "service", "food")` draw:
 
 ![The output set inferred for service 3 and food 8, and the tip over both inputs](https://raw.githubusercontent.com/coredegon/fuzlog/main/docs/img/tipper.png)
 
@@ -40,7 +40,7 @@ print(*tipper.rules, sep="\n")
 - **Sets.** 16 shapes: `triangle`, `trapezoid`, `rising`, `falling`, `rectangle`,
   `singleton`, `piecewise`, `gauss`, `gauss2`, `bell`, `sigmoid`, `dsigmoid`,
   `psigmoid`, `s_shape`, `z_shape`, `pi_shape`; any function of your own through
-  `MF`. Sets combine with `&`, `|`, `~` and `**`.
+  `Set`. Sets combine with `&`, `|`, `~` and `**`.
 - **Variables.** `Variable` names the terms of a quantity; `partition` builds terms
   that always sum to 1, also on periodic universes such as angles.
 - **Rules.** `temp.hot & ~humid.dry >> fan.fast`, with weights and the hedges
@@ -51,10 +51,9 @@ print(*tipper.rules, sep="\n")
 - **Arrays.** A scalar gives a float, arrays give arrays, and inputs broadcast
   against each other.
 - **Labels.** `Labels` describes inputs in words, such as `hot_wet`.
-- **Tables.** `compile` turns a system, `Labels` or any function into a lookup
-  table, also over transformed inputs; `table.save(path)` and `load(path)` keep
-  it on disk.
-- **Plots.** `variable.plot()`, `system.plot(...)`, `system.surface(x, y)`.
+- **Tables.** `tabulate` turns a system, `Labels` or any function into a lookup
+  table; `table.save(path)` and `Table.load(path)` keep it on disk.
+- **Plots.** `plot(variable)`, `plot(system, ...)`, `surface(system, x, y)`.
 
 ## Documentation
 

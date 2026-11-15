@@ -10,7 +10,8 @@ HUMID = fz.Variable(
 
 
 def test_variable_fuzzifies():
-    assert TEMP.fuzzify(12.5) == {"cold": 0.75, "hot": 0.0}
+    assert TEMP(12.5).tolist() == [0.75, 0.0]
+    assert dict(TEMP.terms) == {"cold": TEMP.terms["cold"], "hot": TEMP.terms["hot"]}
     assert TEMP([[5, 25], [15, 35]]).tolist() == [
         [[1, 0], [0.5, 0]],
         [[0, 0.5], [0, 1]],
@@ -22,16 +23,6 @@ def test_variable_fuzzifies():
         repr(TEMP)
         == "Variable('temp', (0, 40), {'cold': falling(10, 20), 'hot': rising(20, 30)})"
     )
-
-
-def test_peaks_sit_in_the_middle_of_the_cores():
-    assert fz.partition("x", (0, 10), a=(0, 2), b=5, c=10).peaks() == pytest.approx(
-        [1, 5, 10]
-    )
-    hue = fz.partition(
-        "hue", (0, 360), red=(350, 10), green=120, blue=240, periodic=True
-    )
-    assert hue.peaks() == pytest.approx([0, 120, 240], abs=1e-6)
 
 
 def test_terms_are_reached_by_attribute_or_item():
@@ -49,7 +40,7 @@ def test_partition_sums_to_one():
     temp = fz.partition("temp", (0, 40), cold=10, warm=(18, 22), hot=30)
     x = np.linspace(-5, 45, 501)
     assert temp(x).sum(axis=0) == pytest.approx(1.0)
-    assert temp.fuzzify(14.0) == pytest.approx({"cold": 0.5, "warm": 0.5, "hot": 0.0})
+    assert temp(14.0) == pytest.approx([0.5, 0.5, 0.0])
     assert list(fz.partition("level", (0, 1), ["low", "mid", "high"])(0.25)) == [
         0.5,
         0.5,
@@ -61,13 +52,19 @@ def test_periodic_partition_wraps_around():
     hue = fz.partition(
         "hue", (0, 360), red=(350, 10), green=120, blue=240, periodic=True
     )
-    assert hue.fuzzify(0.0) == {"red": 1.0, "green": 0.0, "blue": 0.0}
-    assert hue.fuzzify(295.0) == pytest.approx({"red": 0.5, "green": 0.0, "blue": 0.5})
+    assert hue(0.0).tolist() == [1.0, 0.0, 0.0]
+    assert hue(295.0) == pytest.approx([0.5, 0.0, 0.5])
+    assert hue([-10.0, 10.0, 350.0, 359.9]).tolist()[0] == [1.0, 1.0, 1.0, 1.0]
     x = np.random.default_rng(0).uniform(-720, 720, 5000)
     assert hue(x) == pytest.approx(hue(x % 360))
     assert hue(x).sum(axis=0) == pytest.approx(1.0)
     compass = fz.partition("wind", (0, 360), ["n", "e", "s", "w"], periodic=True)
-    assert compass.fuzzify(315.0) == pytest.approx({"n": 0.5, "e": 0, "s": 0, "w": 0.5})
+    assert compass(315.0) == pytest.approx([0.5, 0, 0, 0.5])
+    pair = fz.partition("pair", (0, 360), ["a", "b"], periodic=True)
+    assert pair([0.0, 90.0, 180.0, 270.0]).tolist() == [
+        [1, 0.5, 0, 0.5],
+        [0, 0.5, 1, 0.5],
+    ]
 
 
 BAD = {
@@ -89,7 +86,7 @@ def test_bad_partitions_are_rejected(build):
 def test_a_circle_has_no_place_for_infinity():
     wind = fz.partition("wind", (0, 360), ["n", "e", "s", "w"], periodic=True)
     assert np.isnan(wind([np.inf, -np.inf, np.nan])).all()
-    assert wind.fuzzify(np.inf).keys() == wind.terms.keys()
+    assert wind(np.inf).shape == (4,)
 
 
 def test_terms_of_a_partition_differ():

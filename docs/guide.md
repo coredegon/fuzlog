@@ -32,7 +32,7 @@ Any function of an array makes a set. It receives a float64 array and returns th
 degrees:
 
 ```python
-spike = fz.MF(lambda x: np.exp(-np.abs(x - 20)), "spike")
+spike = fz.Set(lambda x: np.exp(-np.abs(x - 20)), "spike")
 print(spike(20))  # 1.0
 ```
 
@@ -49,11 +49,10 @@ temp = fz.Variable(
     warm=fz.triangle(10, 20, 30),
     hot=fz.rising(20, 30),
 )
-print(temp.fuzzify(17.5))  # {'cold': 0.25, 'warm': 0.75, 'hot': 0.0}
+print(temp(17.5).tolist())  # [0.25, 0.75, 0.0]
 ```
 
-Calling the variable gives the degrees as one array with a row per term, which
-unpacks into the terms:
+The degrees come as one array with a row per term, which unpacks into the terms:
 
 ```python
 cold, warm, hot = temp([5.0, 17.5, 30.0])
@@ -87,16 +86,10 @@ may wrap around, and values are wrapped into the universe before the terms see t
 
 ```python
 wind = fz.partition("wind", (0, 360), ["north", "east", "south", "west"], periodic=True)
-print(wind.fuzzify(315))  # {'north': 0.5, 'east': 0.0, 'south': 0.0, 'west': 0.5}
-print(wind.fuzzify(-45) == wind.fuzzify(315))  # True
+print(wind(315).tolist())  # [0.5, 0.0, 0.0, 0.5]
+print(wind(-45).tolist() == wind(315).tolist())  # True
 hue = fz.partition("hue", (0, 360), red=(350, 10), green=120, blue=240, periodic=True)
-print(hue.fuzzify(355))  # {'red': 1.0, 'green': 0.0, 'blue': 0.0}
-```
-
-`peaks` gives the most typical value of every term, the middle of its core:
-
-```python
-print(temp.peaks().round(2).tolist())  # [5.0, 20.0, 35.0]
+print(hue(355).tolist())  # [1.0, 0.0, 0.0]
 ```
 
 ## Propositions and rules
@@ -210,15 +203,14 @@ answer with a grid value.
 
 ## Sugeno inference
 
-A Sugeno rule concludes a number, or a function that is called with the inputs as
-keyword arguments. The output is the average of the conclusions, weighted by the
+A Sugeno rule concludes a number, or a function of the inputs it names. The output is the average of the conclusions, weighted by the
 firing strengths.
 
 ```python
 heater = fz.Sugeno(
     temp.cold >> 10,
     temp.warm >> 50,
-    temp.hot >> (lambda temp, **others: 60 + temp),
+    temp.hot >> (lambda temp: 60 + temp),
 )
 print(heater(temp=17.5))  # 40.0
 print(heater(temp=[5, 17.5, 28]).tolist())  # [10.0, 40.0, 80.4]
@@ -242,14 +234,14 @@ is NaN or belongs to no term of its variable.
 
 ## Tables
 
-`compile` evaluates a system on a grid of its inputs and returns a `Table`. The
+`tabulate` evaluates a system on a grid of its inputs and returns a `Table`. The
 table is called like the system, but answers by looking the inputs up, so its speed
 does not depend on the number of rules. Between the nodes of the grid it
 interpolates, so the answer is close to the system's and gets closer with more
 `points`.
 
 ```python
-table = fz.compile(cooler, points=201)
+table = fz.tabulate(cooler, points=201)
 print(table)
 # Table(temp[201] x humid[201], linear, from Mamdani(3 rules: temp, humid -> fan))
 print(round(cooler(temp=27.3, humid=41), 2))  # 63.74
@@ -261,7 +253,7 @@ that built them:
 
 ```python
 table.save("cooler.npz")
-table = fz.load("cooler.npz")
+table = fz.Table.load("cooler.npz")
 print(round(table(temp=27.3, humid=41), 2))  # 63.75
 ```
 
@@ -273,30 +265,28 @@ mapping of axes sets them one by one: a number of points for a variable, or a ra
 faster, and exact when the inputs only take the values of the nodes, like the
 levels of an 8-bit channel on the axis `(0, 255, 256)`.
 
-### Transforming the inputs
+### Other inputs
 
-A `transform` makes a table over other quantities than the system reads. It
-receives the inputs of the table as arrays and returns the inputs of the system by
-name. It runs only while the table is compiled, so its cost is paid once.
+A table over other quantities than the system reads is a table of a function that
+converts them. The conversion runs only while the table is built.
 
 ```python
-def metric(fahrenheit, moisture):
-    return {"temp": (fahrenheit - 32) / 1.8, "humid": 100 * moisture}
+def imperial(fahrenheit, moisture):
+    return cooler(temp=(fahrenheit - 32) / 1.8, humid=100 * moisture)
 
 
-axes = {"fahrenheit": (32, 104, 289), "moisture": (0, 1, 201)}
-imperial = fz.compile(cooler, axes, transform=metric)
-print(round(imperial(fahrenheit=81.14, moisture=0.41), 2))  # 63.75
+table = fz.tabulate(imperial, {"fahrenheit": (32, 104, 289), "moisture": (0, 1, 201)})
+print(round(table(fahrenheit=81.14, moisture=0.41), 2))  # 63.75
 ```
 
 ### Tables of labels
 
 A system that answers with strings, such as `Labels` or a function of your own,
-compiles into a table of labels. It keeps the distinct strings once, in
+gives a table of labels. It keeps the distinct strings once, in
 `table.labels`, and a small whole number per node; both are saved together.
 
 ```python
-named = fz.compile(words)
+named = fz.tabulate(words)
 print(named)  # Table(temp[101] x humid[101], 9 labels, from Labels(temp, humid))
 print(named(temp=27, humid=40))  # hot_comfortable
 ```
@@ -323,12 +313,12 @@ and in a notebook.
 ```python
 import matplotlib.pyplot as plt
 
-temp.plot()  # the terms of a variable
-cooler.plot(temp=27, humid=40)  # the inferred output set and its crisp value
-cooler.surface("temp", "humid")  # the output over two inputs
+fz.plot(temp)  # the terms of a variable
+fz.plot(cooler, temp=27, humid=40)  # the inferred output set and its crisp value
+fz.surface(cooler, "temp", "humid")  # the output over two inputs
 
 fig, ax = plt.subplots()
-cooler.surface("temp", "humid", ax)  # on an Axes of your own
+fz.surface(cooler, "temp", "humid", ax)  # on an Axes of your own
 plt.show()
 ```
 

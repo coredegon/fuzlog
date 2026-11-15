@@ -53,8 +53,8 @@ def inference(system: fz.Mamdani, name: str, **inputs: float) -> None:
     figure, (left, right) = plt.subplots(
         1, 2, figsize=(9, 3.2), width_ratios=(3, 2), layout="constrained"
     )
-    system.plot(left, **inputs)
-    system.surface(*inputs, right)
+    fz.plot(system, left, **inputs)
+    fz.surface(system, *inputs, right)
     figure.savefig(IMAGES / name, dpi=144)
 
 
@@ -88,7 +88,7 @@ def guide() -> None:
         temp.hot | humid.wet >> fan.fast,
     )
     figure, ax = plt.subplots(figsize=(7, 2.6), layout="constrained")
-    temp.plot(ax)
+    fz.plot(temp, ax)
     figure.savefig(IMAGES / "variable.png", dpi=144)
     inference(cooler, "cooler.png", temp=27, humid=40)
 

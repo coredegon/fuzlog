@@ -43,7 +43,7 @@ def test_rules_need_no_brackets():
         repr(fz.Rule(hot, FAN.fast, weight=0.5))
         == "if temp is hot then fan is fast [0.5]"
     )
-    assert (hot & dry).variables == (TEMP, HUMID)
+    assert (hot & dry).inputs == {"temp": TEMP, "humid": HUMID}
     with pytest.raises(ValueError, match=r"\[0, 1\]"):
         fz.Rule(hot, FAN.fast, weight=2)
 

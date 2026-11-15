@@ -1,7 +1,7 @@
 # Membership functions
 
 Sixteen shapes cover the thirteen built into the MATLAB Fuzzy Logic Toolbox and the
-shapes of IEEE 1855 (Fuzzy Markup Language). Each call returns a set, an `MF`.
+shapes of IEEE 1855 (Fuzzy Markup Language). Each call returns a `Set`.
 
 ![The sixteen shapes](img/shapes.png)
 
@@ -56,6 +56,6 @@ print(shoulder([4.0, 5.0, 9.0]).round(3).tolist())  # [0.607, 1.0, 1.0]
 and any function of an array is a set:
 
 ```python
-cosine = fz.MF(lambda x: np.cos(np.clip(x - 5, -2, 2) * np.pi / 4) ** 2, "cosine")
+cosine = fz.Set(lambda x: np.cos(np.clip(x - 5, -2, 2) * np.pi / 4) ** 2, "cosine")
 print(cosine([3.0, 4.0, 5.0]).round(3).tolist())  # [0.0, 0.5, 1.0]
 ```

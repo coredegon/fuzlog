@@ -1,21 +1,23 @@
-"""Matplotlib views of linguistic variables and inference systems.
+"""Plots: matplotlib views of variables and systems.
 
 Every function draws on the Axes it is given, or on a new figure, and returns the
-Axes, so it works the same in scripts and in notebooks. Fonts, sizes and the colour
-of text and axes follow matplotlib's configuration; only data wears colour.
+Axes. Fonts, sizes and the colour of text follow matplotlib's configuration; only
+data wears colour. Matplotlib itself is imported by the first plot.
 """
 
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.axes import Axes
-from matplotlib.colors import LinearSegmentedColormap, to_rgba
 
-from fuzlog.inference import Mamdani, Sugeno
+from fuzlog.systems import Mamdani, Sugeno
+from fuzlog.types import Array
 from fuzlog.variables import Variable
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
 
 # Eight hues that stay apart under colour blindness when neighbours take
 # neighbouring slots: one row for light surfaces, one for dark. Terms take them in
@@ -36,39 +38,30 @@ _RAMPS = (
 _SAMPLES = 1001
 
 
-def plot_variable(variable: Variable, ax: Axes | None = None) -> Axes:
-    """Draw the membership function of every term, named above its peak.
+def plot(what: Variable | Mamdani, ax: Axes | None = None, /, **inputs: float) -> Axes:
+    """Draw a variable, or what a Mamdani system infers for scalar inputs.
 
-    A term that wraps around a periodic universe is named at both ends.
+    ```python
+    fz.plot(temp)                          # every term, named above its peak
+    fz.plot(cooler, temp=27, humid=40)     # the output set and its crisp value
+    ```
     """
-    if ax is None:
-        _, ax = plt.subplots(figsize=(7, 2.6), layout="constrained")
-    _draw_terms(variable, ax, linewidth=2.0, wash=0.1)
-    return ax
-
-
-def plot_inference(system: Mamdani, ax: Axes | None = None, **inputs: float) -> Axes:
-    """Draw the output set a Mamdani system infers for scalar inputs.
-
-    The terms of the output variable are outlined, the inferred set is shaded and a
-    vertical line marks the crisp value.
-    """
-    degrees = system.aggregate(**inputs)
+    ax, ink = _canvas(ax, (7, 2.6))
+    if isinstance(what, Variable):
+        _terms(what, ax, linewidth=2.0, wash=0.1)
+        return ax
+    degrees = what.aggregate(**inputs)
     if degrees.ndim != 1:
         raise ValueError("an inference plot shows one sample: pass scalar inputs")
-    if ax is None:
-        _, ax = plt.subplots(figsize=(7, 2.6), layout="constrained")
-    _draw_terms(system.output, ax, linewidth=1.0, wash=0.0)
-    ink = plt.rcParams["text.color"]
-    ax.fill_between(system.x, degrees, color=ink, alpha=0.2, linewidth=0)
-    ax.plot(system.x, degrees, color=ink, linewidth=2)
-    crisp = system(**inputs)
+    _terms(what.output, ax, linewidth=1.0, wash=0.0)
+    ax.fill_between(what.x, degrees, color=ink, alpha=0.2, linewidth=0)
+    ax.plot(what.x, degrees, color=ink, linewidth=2)
+    crisp = what(**inputs)
     if not math.isnan(crisp):
         ax.axvline(crisp, color=ink, linewidth=1)
-        low, high = system.output.universe
-        left = crisp > (low + high) / 2  # write on the roomier side of the line
+        left = crisp > sum(what.output.universe) / 2  # write on the roomier side
         ax.annotate(
-            f"{system.output.name} = {crisp:.3g}",
+            f"{what.output.name} = {crisp:.3g}",
             (crisp, 0.5),
             xytext=(-6 if left else 6, 0),
             textcoords="offset points",
@@ -79,10 +72,11 @@ def plot_inference(system: Mamdani, ax: Axes | None = None, **inputs: float) -> 
     return ax
 
 
-def plot_surface(
+def surface(
     system: Mamdani | Sugeno,
     x: str,
     y: str,
+    /,
     ax: Axes | None = None,
     *,
     points: int = 64,
@@ -90,16 +84,18 @@ def plot_surface(
 ) -> Axes:
     """Draw the output of a system over two of its inputs, as a labelled heat map.
 
-    ``x`` and ``y`` name the inputs on the axes, sampled at ``points`` values each
-    over their universes; all other inputs are ``fixed`` to the given values.
+    ```python
+    fz.surface(cooler, "temp", "humid")
+    fz.surface(cooler, "temp", "humid", wind=3)    # other inputs are fixed
+    ```
     """
-    if ax is None:
-        _, ax = plt.subplots(figsize=(5, 4), layout="constrained")
+    from matplotlib.colors import LinearSegmentedColormap
+
+    ax, ink = _canvas(ax, (5, 4))
     xs, ys = (np.linspace(*system.inputs[name].universe, points) for name in (x, y))
     z = system(**{x: xs[None, :], y: ys[:, None]}, **fixed)
     colors = LinearSegmentedColormap.from_list("fuzlog", _RAMPS[_dark(ax)])
     mesh = ax.pcolormesh(xs, ys, z, cmap=colors, shading="gouraud", rasterized=True)
-    ink = plt.rcParams["text.color"]
     levels = ax.contour(xs, ys, z, levels=6, colors=ink, linewidths=0.5)
     ax.clabel(levels, fmt="%.3g", fontsize="small")
     name = system.output.name if isinstance(system, Mamdani) else "output"
@@ -108,7 +104,16 @@ def plot_surface(
     return ax
 
 
-def _draw_terms(variable: Variable, ax: Axes, *, linewidth: float, wash: float) -> None:
+def _canvas(ax: Axes | None, size: tuple[float, float]) -> tuple[Axes, str]:
+    """The Axes to draw on, new if none is given, and the colour of its text."""
+    import matplotlib.pyplot as plt
+
+    if ax is None:
+        _, ax = plt.subplots(figsize=size, layout="constrained")
+    return ax, plt.rcParams["text.color"]
+
+
+def _terms(variable: Variable, ax: Axes, *, linewidth: float, wash: float) -> None:
     """Draw the curve of every term and write the term names along the top."""
     low, high = variable.universe
     x = np.linspace(low, high, _SAMPLES)
@@ -119,7 +124,7 @@ def _draw_terms(variable: Variable, ax: Axes, *, linewidth: float, wash: float) 
         ax.plot(x, curve, color=hue, linewidth=linewidth)
         if wash:
             ax.fill_between(x, curve, color=hue, alpha=wash, linewidth=0)
-    places, terms = variable.peaks().tolist(), list(variable.terms)
+    places, terms = _peaks(variable).tolist(), list(variable.terms)
     owner = int(degrees[:, 0].argmax())
     if variable.periodic and degrees[owner, 0] > 0.5:
         # The term that owns the seam is named at the far end too.
@@ -141,8 +146,26 @@ def _draw_terms(variable: Variable, ax: Axes, *, linewidth: float, wash: float) 
     ax.spines[["top", "right"]].set_visible(False)
 
 
+def _peaks(variable: Variable) -> Array:
+    """The most typical value of every term: the middle of where it is highest.
+
+    On a periodic universe the middle is found going around the circle.
+    """
+    x = variable.grid(2001)
+    degrees = variable(x)
+    core = (degrees >= degrees.max(axis=1, keepdims=True) - 1e-9).astype(np.float64)
+    if not variable.periodic:
+        return (core @ x) / core.sum(axis=1)
+    low, high = variable.universe
+    angle = (x - low) * (math.tau / (high - low))
+    middle = np.arctan2(core @ np.sin(angle), core @ np.cos(angle)) % math.tau
+    return low + middle * ((high - low) / math.tau)
+
+
 def _dark(ax: Axes) -> bool:
     """Tell whether the Axes has a dark surface, which takes its own colour steps."""
+    from matplotlib.colors import to_rgba
+
     red, green, blue, alpha = to_rgba(ax.get_facecolor())
     if alpha == 0.0:
         red, green, blue, _ = to_rgba(ax.figure.get_facecolor())

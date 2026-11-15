@@ -1,4 +1,4 @@
-"""What is said about variables: propositions, hedges and rules."""
+"""What is said about variables: propositions, rules and the hedges."""
 
 from __future__ import annotations
 
@@ -8,28 +8,59 @@ from typing import TYPE_CHECKING, Any, overload
 import numpy as np
 from numpy.typing import ArrayLike
 
-from fuzlog.sets import MF
 from fuzlog.types import Array, Norm
 
 if TYPE_CHECKING:
+    from fuzlog.sets import Set
     from fuzlog.variables import Variable
-
-type Degree = Callable[[Variable, str], Array]  # degree of the inputs in a term
 
 _HEDGES = {2.0: "very", 3.0: "extremely", 0.5: "somewhat"}
 
 
+class Inputs:
+    """Crisp inputs by variable name, fuzzified term by term and only once.
+
+    `shape` is the shape the inputs broadcast to: `()` if all are scalars.
+    """
+
+    __slots__ = ("_seen", "shape", "values")
+
+    def __init__(self, values: Mapping[str, ArrayLike]) -> None:
+        given = {name: np.asarray(x, dtype=np.float64) for name, x in values.items()}
+        shapes = {x.shape for x in given.values()}
+        self.shape = shapes.pop() if len(shapes) == 1 else np.broadcast_shapes(*shapes)
+        self.values = {name: x if x.ndim else x[None] for name, x in given.items()}
+        self._seen: dict[Any, Array] = {}
+
+    def __getitem__(self, name: str) -> Array:
+        if name not in self.values:
+            raise TypeError(f"missing input {name!r}")
+        return self.values[name]
+
+    def degree(self, variable: Variable, term: str) -> Array:
+        """Return the degree of the input of `variable` in its `term`."""
+        seen = self._seen
+        if (variable, term) not in seen:
+            if variable not in seen:
+                seen[variable] = variable.wrap(self[variable.name])
+            seen[variable, term] = variable.terms[term].curve(seen[variable])
+        return seen[variable, term]
+
+    def result(self, out: Array) -> Any:
+        """Give `out` the shape of the inputs: a float if they are scalars."""
+        return np.broadcast_to(out, self.shape).copy() if self.shape else out.item()
+
+
 class Prop:
-    """A fuzzy proposition: ``variable is term`` or a combination of propositions.
+    """A proposition: `variable is term`, or propositions joined together.
 
-    Propositions combine with ``&`` (and), ``|`` (or), ``~`` (not) and ``**`` (a
-    hedge), and ``>>`` turns one into a rule: ``temp.hot & humidity.high >> fan.fast``.
-    Calling a proposition gives the degree to which it holds::
+    ```python
+    muggy = temp.hot & ~humid.dry     # & and, | or, ~ not, ** hedge
+    muggy(temp=31, humid=80)          # 0.8: the degree to which it holds
+    muggy >> fan.fast                 # a rule
+    ```
 
-        (temp.hot & ~humidity.high)(temp=31, humidity=0.4)
-
-    ``op`` is one of ``is``, ``and``, ``or``, ``not`` and ``pow``; ``args`` holds the
-    variable and term name, the operands, or the operand and its exponent.
+    `op` is `is`, `and`, `or`, `not` or `pow`; `args` holds what it applies to.
     """
 
     __slots__ = ("args", "op")
@@ -58,31 +89,26 @@ class Prop:
         return Rule(self, then)
 
     @property
-    def variables(self) -> tuple[Variable, ...]:
-        """The variables the proposition talks about, in order of first mention."""
+    def inputs(self) -> dict[str, Variable]:
+        """The variables the proposition talks about, by name."""
         if self.op == "is":
-            return (self.args[0],)
-        nested = (
-            v for part in self.args if isinstance(part, Prop) for v in part.variables
-        )
-        return tuple(dict.fromkeys(nested))
+            return {self.args[0].name: self.args[0]}
+        parts = (part for part in self.args if isinstance(part, Prop))
+        return {name: v for part in parts for name, v in part.inputs.items()}
 
     def truth(
-        self, degree: Degree, tnorm: Norm = np.minimum, snorm: Norm = np.maximum
+        self, inputs: Inputs, tnorm: Norm = np.minimum, snorm: Norm = np.maximum
     ) -> Array:
-        """Evaluate the proposition, given the degree of every ``variable is term``.
-
-        ``and`` is computed by ``tnorm`` and ``or`` by ``snorm``.
-        """
+        """Return the degree to which it holds: `and` by `tnorm`, `or` by `snorm`."""
         if self.op == "is":
-            return degree(*self.args)
+            return inputs.degree(*self.args)
         first, *rest = self.args
-        value = first.truth(degree, tnorm, snorm)
+        value = first.truth(inputs, tnorm, snorm)
         match self.op:
             case "and":
-                return tnorm(value, rest[0].truth(degree, tnorm, snorm))
+                return tnorm(value, rest[0].truth(inputs, tnorm, snorm))
             case "or":
-                return snorm(value, rest[0].truth(degree, tnorm, snorm))
+                return snorm(value, rest[0].truth(inputs, tnorm, snorm))
             case "not":
                 return 1.0 - value
             case _:
@@ -93,14 +119,9 @@ class Prop:
     @overload
     def __call__(self, **inputs: ArrayLike) -> Array: ...
     def __call__(self, **inputs: ArrayLike) -> Array | float:
-        """Return the degree to which the proposition holds for the given inputs.
-
-        Inputs are passed by variable name and broadcast against each other; ``and``
-        is the minimum and ``or`` the maximum.
-        """
-        degree, shape = fuzzifier(inputs)
-        truth = self.truth(degree)
-        return np.broadcast_to(truth, shape).copy() if shape else truth.item()
+        """Return the degree to which the proposition holds for inputs given by name."""
+        given = Inputs(inputs)
+        return given.result(self.truth(given))
 
     def __bool__(self) -> bool:
         raise TypeError("a Prop has no truth value: combine with & | ~, not and/or/not")
@@ -124,13 +145,15 @@ class Prop:
 
 
 class Rule:
-    """A fuzzy rule: if ``when`` holds, then ``then``.
+    """A rule: if `when` holds, then `then`.
 
-    ``then`` is a proposition about an output variable (Mamdani), or a number or a
-    function of the inputs (Sugeno). ``weight`` in [0, 1] scales the firing strength.
-    Rules are usually written ``when >> then``; because Python binds ``>>`` tighter
-    than ``&`` and ``|``, a rule also absorbs conditions joined to its left, so the
-    antecedent needs no parentheses: ``a & b >> c`` is ``(a & b) >> c``.
+    ```python
+    temp.hot & humid.wet >> fan.fast          # for Mamdani
+    temp.hot >> (lambda temp: 2 * temp)       # for Sugeno: a number or a function
+    fz.Rule(temp.hot, fan.fast, weight=0.5)   # fires at half strength
+    ```
+
+    `>>` takes everything to its left as the condition, so it needs no brackets.
     """
 
     __slots__ = ("then", "weight", "when")
@@ -149,11 +172,19 @@ class Rule:
         self.then = then
         self.weight = weight
 
+    # Python binds >> tighter than & and |: the rule takes in what was left outside.
     def __rand__(self, other: Prop) -> Rule:
         return Rule(other & self.when, self.then, self.weight)
 
     def __ror__(self, other: Prop) -> Rule:
         return Rule(other | self.when, self.then, self.weight)
+
+    def fire(
+        self, inputs: Inputs, tnorm: Norm = np.minimum, snorm: Norm = np.maximum
+    ) -> Array:
+        """Return how strongly the rule fires: the truth of `when` times `weight`."""
+        truth = self.when.truth(inputs, tnorm, snorm)
+        return truth if self.weight == 1.0 else truth * self.weight
 
     def __repr__(self) -> str:
         then = getattr(self.then, "__name__", self.then)
@@ -161,41 +192,16 @@ class Rule:
         return f"if {self.when} then {then}{weight}"
 
 
-def fuzzifier(inputs: Mapping[str, ArrayLike]) -> tuple[Degree, tuple[int, ...]]:
-    """Prepare crisp inputs, given by variable name, for evaluating propositions.
-
-    Returns ``degree(variable, term)``, which fuzzifies on demand and remembers the
-    result, and the shape the inputs broadcast to (``()`` if all are scalars).
-    """
-    values = {name: np.asarray(x, dtype=np.float64) for name, x in inputs.items()}
-    shapes = {x.shape for x in values.values()}
-    shape = shapes.pop() if len(shapes) == 1 else np.broadcast_shapes(*shapes)
-    wrapped: dict[Variable, Array] = {}
-    degrees: dict[tuple[Variable, str], Array] = {}
-
-    def degree(variable: Variable, term: str) -> Array:
-        key = (variable, term)
-        if key not in degrees:
-            if variable not in wrapped:
-                if variable.name not in values:
-                    raise TypeError(f"missing input {variable.name!r}")
-                wrapped[variable] = variable._wrap(np.atleast_1d(values[variable.name]))
-            degrees[key] = variable.terms[term].fn(wrapped[variable])
-        return degrees[key]
-
-    return degree, shape
-
-
-def very[S: (MF, Prop)](s: S) -> S:
-    """Concentrate a set or a proposition: degrees are squared."""
+def very[S: (Set, Prop)](s: S) -> S:
+    """Concentrate a set or a proposition: `s ** 2`."""
     return s**2
 
 
-def extremely[S: (MF, Prop)](s: S) -> S:
-    """Concentrate a set or a proposition strongly: degrees are cubed."""
+def extremely[S: (Set, Prop)](s: S) -> S:
+    """Concentrate a set or a proposition strongly: `s ** 3`."""
     return s**3
 
 
-def somewhat[S: (MF, Prop)](s: S) -> S:
-    """Dilate a set or a proposition: the square root of the degrees."""
+def somewhat[S: (Set, Prop)](s: S) -> S:
+    """Dilate a set or a proposition: `s ** 0.5`."""
     return s**0.5

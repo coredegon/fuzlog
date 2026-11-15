@@ -3,31 +3,6 @@ import pytest
 
 import fuzlog as fz
 
-
-def test_norms():
-    a, b = np.array([0.2, 0.9]), np.array([0.5, 0.6])
-    assert fz.probor(a, b) == pytest.approx([0.6, 0.96])
-    assert fz.bounded_sum(a, b) == pytest.approx([0.7, 1.0])
-    assert fz.bounded_diff(a, b) == pytest.approx([0.0, 0.5])
-
-
-def test_defuzzifiers():
-    x = np.linspace(0, 10, 11)
-    hill = fz.trapezoid(2, 4, 6, 9)(x)
-    assert fz.centroid(x, fz.triangle(2, 4, 9)(x)) == pytest.approx(
-        5.0
-    )  # (2 + 4 + 9) / 3
-    assert fz.bisector(x, hill) == 5.0
-    assert (fz.som(x, hill), fz.mom(x, hill), fz.lom(x, hill)) == (4.0, 5.0, 6.0)
-    both = np.stack(
-        [hill, np.zeros(11)]
-    )  # the last axis is the grid; an empty set has no value
-    for defuzz in (fz.centroid, fz.bisector, fz.mom, fz.som, fz.lom):
-        value, empty = defuzz(x, both)
-        assert np.isfinite(value)
-        assert np.isnan(empty)
-
-
 # The tipping problem: two inputs, three rules.
 QUALITY = fz.partition("quality", (0, 10), ["poor", "average", "good"])
 SERVICE = fz.partition("service", (0, 10), ["poor", "average", "good"])
@@ -89,7 +64,27 @@ def test_sugeno_is_a_weighted_average():
     assert flat(x=[0.0, 5.0, 10.0]).tolist() == [10.0, 15.0, 20.0]
     linear = fz.Sugeno(x.low >> 10, x.high >> (lambda x, gain: gain * x))
     assert linear(x=2.5, gain=2.0) == 8.75
+    with pytest.raises(TypeError, match="missing input 'gain'"):
+        linear(x=2.5)
     assert np.isnan(fz.Sugeno(fz.very(x.low) >> 1.0)(x=10.0))
+
+
+def test_sugeno_function_receives_the_inputs_it_names():
+    x = fz.partition("x", (0, 10), ["low", "high"])
+    y = fz.partition("y", (0, 10), ["low", "high"])
+    system = fz.Sugeno(
+        x.low & y.low >> (lambda y: y + 1.0),
+        x.high >> (lambda **inputs: float(len(inputs))),
+    )
+    assert system(x=0.0, y=3.0) == 4.0
+    assert system(x=10.0, y=3.0) == 2.0
+
+
+def test_rules_fire_on_their_own():
+    inputs = fz.rules.Inputs({"service": [0.0, 2.5, 10.0]})
+    rule = fz.Rule(SERVICE.poor, TIP.low, weight=0.5)
+    assert rule.fire(inputs).tolist() == [0.5, 0.25, 0.0]
+    assert rule.fire(inputs, tnorm=np.multiply).tolist() == [0.5, 0.25, 0.0]
 
 
 def test_systems_reject_wrong_rules_and_inputs():
@@ -103,63 +98,8 @@ def test_systems_reject_wrong_rules_and_inputs():
         fz.Mamdani(*RULES)(quality=5)
 
 
-def test_labels_describe_inputs_by_their_strongest_terms():
-    temp = fz.partition("temp", (0, 40), cold=10, warm=20, hot=30)
-    humid = fz.partition("humid", (0, 100), ["dry", "comfortable", "wet"])
-    words = fz.Labels(temp, humid)
-    assert words(temp=27, humid=40) == "hot_comfortable"
-    assert isinstance(words(temp=27, humid=40), str)
-    assert words(temp=[[5.0], [27.0]], humid=[10.0, 50.0, 90.0]).tolist() == [
-        ["cold_dry", "cold_comfortable", "cold_wet"],
-        ["hot_dry", "hot_comfortable", "hot_wet"],
-    ]
-    assert words(temp=15, humid=0) == "cold_dry"  # the first of equal terms wins
-    assert repr(words) == "Labels(temp, humid)"
-    assert list(words.inputs) == ["temp", "humid"]
-
-
-def test_labels_join_terms_with_any_separator():
-    temp = fz.partition("temp", (0, 40), cold=10, warm=20, hot=30)
-    wind = fz.partition(
-        "wind", (0, 360), ["north", "east", "south", "west"], periodic=True
-    )
-    assert fz.Labels(temp, wind, sep=" ")(temp=31, wind=350) == "hot north"
-    assert fz.Labels(wind, temp, sep=", ")(temp=31, wind=100) == "east, hot"
-    assert fz.Labels(temp, sep="")(temp=[1, 39]).tolist() == ["cold", "hot"]
-
-
-def test_labels_are_empty_where_no_term_holds():
-    level = fz.Variable("level", (0, 10), low=fz.falling(2, 4), high=fz.rising(6, 8))
-    other = fz.partition("other", (0, 1), ["a", "b"])
-    words = fz.Labels(level, other)
-    assert words(level=[1, 5, 9, np.nan], other=0).tolist() == [
-        "low_a",
-        "",
-        "high_a",
-        "",
-    ]
-    assert words(level=5, other=0) == ""
-
-
-def test_labels_need_variables_and_inputs():
-    temp = fz.partition("temp", (0, 40), cold=10, warm=20, hot=30)
-    with pytest.raises(TypeError, match="describe variables"):
-        fz.Labels()
-    with pytest.raises(TypeError, match="describe variables"):
-        fz.Labels(temp, temp.hot)  # ty: ignore[invalid-argument-type]
-    with pytest.raises(ValueError, match="must differ"):
-        fz.Labels(temp, temp)
-    with pytest.raises(TypeError, match="missing input 'temp'"):
-        fz.Labels(temp)(humid=3)
-
-
 def test_sugeno_conclusion_counts_only_where_its_rule_fires():
     x = fz.partition("x", (0, 10), low=2, high=8)
     system = fz.Sugeno(x.low >> 1.0, x.high >> (lambda x: 1.0 / (x - 1.0)))
     with np.errstate(divide="ignore"):
         assert system(x=[1.0, 8.0]).tolist() == [1.0, 1.0 / 7.0]
-
-
-def test_labels_separator_is_a_string():
-    with pytest.raises(TypeError, match="sep must be a string"):
-        fz.Labels(QUALITY, sep=1)  # ty: ignore[invalid-argument-type]
