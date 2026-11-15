@@ -107,10 +107,15 @@ class Table:
 
         Inputs outside an axis take its nearest end, or wrap around if it is
         periodic. A NaN input gives NaN, or an empty label.
+
+        A `"nearest"` table of whole numbers answers in the type it stores, such
+        as `np.uint8`; it has no answer for NaN and raises.
         """
         if self._words is not None:
             words = self._words[self.codes(**inputs)]
             return words if isinstance(words, np.ndarray) else str(words)
+        if self.method == "nearest" and np.issubdtype(self.values.dtype, np.integer):
+            return self._read(inputs, "nearest", self.values.dtype, None)
         return self._read(inputs, self.method, np.float64, np.nan)
 
     def codes(self, **inputs: ArrayLike) -> Any:
@@ -120,7 +125,11 @@ class Table:
         return self._read(inputs, "nearest", np.intp, -1)
 
     def _read(
-        self, inputs: Mapping[str, ArrayLike], method: Method, dtype: type, lost: float
+        self,
+        inputs: Mapping[str, ArrayLike],
+        method: Method,
+        dtype: DTypeLike,
+        lost: float | None,
     ) -> Any:
         """Look the inputs up; `lost` stands where one of them is NaN."""
         names = [axis.name for axis in self.axes]
@@ -136,6 +145,8 @@ class Table:
                 at[nan] = 0.0
                 missing.append(nan)
             places.append(at)
+        if missing and lost is None:
+            raise ValueError("a table of whole numbers has no answer for NaN")
         wraps = [axis.periodic for axis in self.axes]
         if method == "nearest":
             out = grid.nearest(self.values, places, wraps)
@@ -219,7 +230,8 @@ def tabulate(
         method: How the table answers between its nodes: `"linear"`, the
             default, or `"nearest"`, as a table of labels always does.
         dtype: Type of the stored values: by default `np.float64`, and for
-            labels the smallest whole type that counts them.
+            labels the smallest whole type that counts them. With a whole type
+            and `"nearest"` the table answers in that type.
     """
     table_axes = _axes(axes, getattr(system, "inputs", {}), points)
     nodes = [axis.grid() for axis in table_axes]

@@ -91,7 +91,7 @@ a `Table` of anything called with keyword arrays.
 
 | Member of `Table` | Meaning |
 |---|---|
-| `table(**inputs)` | the looked-up output. Inputs outside an axis take its nearest end, or wrap around if it is periodic; NaN gives NaN, or an empty label |
+| `table(**inputs)` | the looked-up output. Inputs outside an axis take its nearest end, or wrap around if it is periodic; NaN gives NaN, or an empty label. A `"nearest"` table of whole numbers answers in the type it stores and raises for NaN |
 | `table.codes(**inputs)` | for a table of labels, the position in `labels`; -1 for NaN |
 | `table.save(path, *, compress=False)` | writes a NumPy `.npz` archive |
 | `Table.load(path)` | reads one |

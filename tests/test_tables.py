@@ -146,6 +146,27 @@ def test_small_dtype_is_kept_on_disk_and_gives_float64(tmp_path):
     assert loaded(temp=[27.0], humid=[40.0]).dtype == np.float64
 
 
+def test_a_nearest_table_of_whole_numbers_answers_in_its_own_type(tmp_path):
+    def level(x, y):
+        return np.floor(x / 64) + 4 * np.floor(y / 64)
+
+    axes = {"x": (0, 255, 256), "y": (0, 255, 256)}
+    table = fz.tabulate(level, axes, method="nearest", dtype=np.uint8)
+    x = np.array([[0, 63, 64, 255]], dtype=np.uint8)
+    y = np.array([[0], [200]], dtype=np.uint8)
+    out = table(x=x, y=y)
+    assert out.dtype == np.uint8
+    assert out.tolist() == [[0, 0, 1, 3], [12, 12, 13, 15]]
+    assert np.array_equal(out, table.values[x, y])
+    assert type(table(x=64, y=200)) is int
+    with pytest.raises(ValueError, match="no answer for NaN"):
+        table(x=np.nan, y=0)
+    table.save(tmp_path / "level.npz")
+    assert fz.Table.load(tmp_path / "level.npz")(x=x, y=y).dtype == np.uint8
+    smooth = fz.tabulate(level, axes, dtype=np.uint8)  # linear: between nodes
+    assert smooth(x=x, y=y).dtype == np.float64
+
+
 def test_load_refuses_other_files(tmp_path):
     with pytest.raises(FileNotFoundError):
         fz.Table.load(tmp_path / "absent.npz")

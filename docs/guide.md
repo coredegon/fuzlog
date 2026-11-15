@@ -229,7 +229,7 @@ print(round(table(temp=27.3, humid=41), 2))  # 63.75
 | `axes` | `{name: points}`, `{name: (low, high)}` or `{name: (low, high, points)}`; by default every input of the system |
 | `points` | points of every axis that gives none: `101` |
 | `method` | `"linear"` interpolates between nodes, `"nearest"` takes the closest one |
-| `dtype` | `np.float32` halves the size |
+| `dtype` | `np.float32` halves the size; a whole type such as `np.uint8` with `"nearest"` is also the type of the answers |
 
 Anything called with keyword arrays can be tabulated, so a function puts a system
 on other axes:
