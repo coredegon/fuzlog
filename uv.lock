@@ -168,17 +168,12 @@ name = "fuzlog"
 version = "0.2.0"
 source = { editable = "." }
 dependencies = [
-    { name = "numpy" },
-]
-
-[package.optional-dependencies]
-plot = [
     { name = "matplotlib" },
+    { name = "numpy" },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "matplotlib" },
     { name = "pytest" },
     { name = "ruff" },
     { name = "ty" },
@@ -186,14 +181,12 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "matplotlib", marker = "extra == 'plot'", specifier = ">=3.9" },
+    { name = "matplotlib", specifier = ">=3.9" },
     { name = "numpy", specifier = ">=2.0" },
 ]
-provides-extras = ["plot"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "matplotlib", specifier = ">=3.9" },
     { name = "pytest", specifier = ">=9.2.0" },
     { name = "ruff", specifier = ">=0.17.5" },
     { name = "ty", specifier = ">=0.0.104" },

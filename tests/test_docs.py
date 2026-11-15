@@ -56,7 +56,8 @@ def same(printed, wanted):
 
 @pytest.fixture
 def _sandbox(monkeypatch, tmp_path):
-    matplotlib = pytest.importorskip("matplotlib")
+    import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 

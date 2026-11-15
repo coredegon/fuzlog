@@ -1,12 +1,12 @@
-import pytest
+import matplotlib
 
-matplotlib = pytest.importorskip("matplotlib")
 matplotlib.use("Agg")
 
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
+import matplotlib.pyplot as plt
+import numpy as np
+import pytest
 
-import fuzlog as fz  # noqa: E402
+import fuzlog as fz
 
 TEMP = fz.partition("temp", (0, 40), cold=10, warm=20, hot=30)
 FAN = fz.partition("fan", (0, 100), ["slow", "medium", "fast"])

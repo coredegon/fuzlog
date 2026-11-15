@@ -9,11 +9,7 @@ from __future__ import annotations
 
 import math
 
-try:
-    import matplotlib.pyplot as plt
-except ModuleNotFoundError as error:  # pragma: no cover
-    hint = 'plotting needs matplotlib: pip install "fuzlog[plot]"'
-    raise ModuleNotFoundError(hint) from error
+import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.colors import LinearSegmentedColormap, to_rgba

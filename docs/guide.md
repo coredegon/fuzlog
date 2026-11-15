@@ -317,8 +317,7 @@ A table holds one number per node: `points` to the power of the number of inputs
 
 ## Plots
 
-Plots need matplotlib: `pip install "fuzlog[plot]"`. Each call draws on the Axes it is
-given, or on a new figure, and returns the Axes, so it works the same in a script
+Each call draws on the Axes it is given, or on a new figure, and returns the Axes, so it works the same in a script
 and in a notebook.
 
 ```python

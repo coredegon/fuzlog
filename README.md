@@ -4,8 +4,7 @@ Fuzzy logic for Python: membership functions, linguistic variables, Mamdani and
 Sugeno inference. Built on NumPy, typed, Python 3.12+.
 
 ```sh
-pip install fuzlog            # NumPy is the only dependency
-pip install "fuzlog[plot]"    # adds matplotlib for the plots
+pip install fuzlog
 ```
 
 ## Example

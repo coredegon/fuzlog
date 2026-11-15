@@ -121,7 +121,7 @@ class Variable:
         return low + middle * ((high - low) / math.tau)
 
     def plot(self, ax: Axes | None = None) -> Axes:
-        """Draw the membership function of every term (needs matplotlib)."""
+        """Draw the membership function of every term."""
         from fuzlog.plotting import plot_variable
 
         return plot_variable(self, ax)
