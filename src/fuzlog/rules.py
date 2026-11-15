@@ -56,7 +56,7 @@ class Prop:
 
     ```python
     muggy = temp.hot & ~humid.dry     # & and, | or, ~ not, ** hedge
-    muggy(temp=31, humid=80)          # 0.8: the degree to which it holds
+    muggy(temp=31, humid=80)          # the degree to which it holds
     muggy >> fan.fast                 # a rule
     ```
 

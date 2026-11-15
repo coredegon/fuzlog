@@ -27,7 +27,7 @@ class Mamdani:
 
     ```python
     fan = fz.Mamdani(temp.cold >> speed.slow, temp.hot | humid.wet >> speed.fast)
-    fan(temp=31, humid=80)              # 74.3
+    fan(temp=31, humid=80)              # a float
     fan(temp=[18, 25, 31], humid=80)    # an array: inputs broadcast
     ```
 

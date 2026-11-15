@@ -17,12 +17,12 @@ class Set:
 
     ```python
     warm = fz.triangle(10, 20, 30)
-    warm(15)              # 0.5
-    warm([5, 15, 20])     # array([0. , 0.5, 1. ])
-    warm & ~fz.gauss(20, 3)   # & min, | max, ~ complement, ** power
+    warm(15)                   # 0.5
+    warm([5, 15, 20])          # array([0. , 0.5, 1. ])
+    warm & ~fz.gauss(20, 3)    # & min, | max, ~ complement, ** power
     ```
 
-    Any function of a float64 array is a `curve`: `Set(np.cos, "wave")`.
+    Any function of a float64 array is a `curve`: `Set(lambda x: np.exp(-x**2))`.
     """
 
     __slots__ = ("curve", "name")
